@@ -1,0 +1,84 @@
+{% extends "portail_base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>💳 Mes paiements</h1>
+        <p>Historique des paiements et factures en attente de règlement.</p>
+    </div>
+</div>
+
+{% if not cle_stripe_configuree %}
+<div class="flash info" style="margin:0 0 20px;">
+    Le paiement en ligne n'est pas encore configuré par l'entreprise. Vous pouvez tout de même consulter vos factures.
+</div>
+{% endif %}
+
+<div class="section">
+    <div class="section-header">
+        <h2>Factures impayées</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Date</th>
+                <th>Montant</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for facture in impayees %}
+            <tr>
+                <td>{{ facture.numero }}</td>
+                <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
+                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                <td>
+                    {% if cle_stripe_configuree %}
+                    <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-primary">Payer</button>
+                    </form>
+                    {% endif %}
+                    <a href="{{ url_for('portail_detail_facture', id=facture.id) }}" class="btn btn-info">Voir</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="4" class="empty">Aucune facture impayée. 🎉</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Historique des paiements</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Date</th>
+                <th>Montant payé</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for facture in payees %}
+            <tr>
+                <td>{{ facture.numero }}</td>
+                <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
+                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="3" class="empty">Aucun paiement enregistré.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

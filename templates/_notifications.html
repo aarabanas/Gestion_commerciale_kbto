@@ -1,0 +1,34 @@
+<div class="notif-wrap">
+    <button type="button" class="notif-cloche" onclick="basculerNotifications(event)">
+        <i class="fa-solid fa-bell"></i>
+        {% if nb_notifications %}
+        <span class="notif-badge">{{ nb_notifications }}</span>
+        {% endif %}
+    </button>
+
+    <div class="notif-menu" id="notif-menu" onclick="event.stopPropagation()">
+        <div class="notif-titre">Notifications</div>
+        {% if notifications %}
+            {% for notification in notifications %}
+            <a class="notif-item" href="{{ notification.url }}">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>{{ notification.texte }}</span>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="notif-item notif-vide">Aucune alerte pour le moment.</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function basculerNotifications(evenement) {
+        evenement.stopPropagation();
+        document.getElementById('notif-menu').classList.toggle('ouvert');
+    }
+
+    document.addEventListener('click', function () {
+        var menu = document.getElementById('notif-menu');
+        if (menu) { menu.classList.remove('ouvert'); }
+    });
+</script>

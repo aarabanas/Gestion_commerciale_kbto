@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>🔎 Résultats de recherche</h1>
+        <p>{% if q %}Résultats pour « {{ q }} »{% else %}Saisissez un terme dans la barre de recherche.{% endif %}</p>
+    </div>
+</div>
+
+{% if q %}
+
+<div class="section">
+    <div class="section-header">
+        <h2>Clients</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr><th>Nom</th><th>Prénom</th><th>Email</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for client in clients %}
+            <tr>
+                <td>{{ client.nom }}</td>
+                <td>{{ client.prenom }}</td>
+                <td>{{ client.email or "—" }}</td>
+                <td><a href="{{ url_for('modifier_client', id=client.id) }}" class="btn btn-info">Voir</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="4" class="empty">Aucun client trouvé.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Produits</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr><th>Nom</th><th>Catégorie</th><th>Prix</th><th>Stock</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for produit in produits %}
+            <tr>
+                <td>{{ produit.nom }}</td>
+                <td>{{ produit.categorie or "—" }}</td>
+                <td>{{ "%.2f"|format(produit.prix) }} DH</td>
+                <td>{{ produit.quantite }}</td>
+                <td><a href="{{ url_for('modifier_produit', id=produit.id) }}" class="btn btn-info">Voir</a></td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="empty">Aucun produit trouvé.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if factures %}
+<div class="section">
+    <div class="section-header">
+        <h2>Factures</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr><th>N°</th><th>Client</th><th>Total</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+        {% for facture in factures %}
+            <tr>
+                <td>{{ facture.numero }}</td>
+                <td>{% if facture.client %}{{ facture.client.nom }} {{ facture.client.prenom }}{% else %}—{% endif %}</td>
+                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                <td><a href="{{ url_for('detail_facture', id=facture.id) }}" class="btn btn-info">Voir</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endif %}
+
+{% endblock %}

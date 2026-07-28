@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>➕ Nouveau client</h1>
+        <p>Ajoutez un client à votre portefeuille.</p>
+    </div>
+    <a href="{{ url_for('liste_clients') }}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Retour
+    </a>
+</div>
+
+<div class="form-card">
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.nom.label }}
+            {{ form.nom(class="form-control") }}
+            {% for e in form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.prenom.label }}
+            {{ form.prenom(class="form-control") }}
+            {% for e in form.prenom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.email.label }}
+            {{ form.email(class="form-control") }}
+            {% for e in form.email.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.telephone.label }}
+            {{ form.telephone(class="form-control") }}
+            {% for e in form.telephone.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.adresse.label }}
+            {{ form.adresse(class="form-control") }}
+            {% for e in form.adresse.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-actions">
+            {{ form.envoyer(class="btn btn-success") }}
+            <a href="{{ url_for('liste_clients') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

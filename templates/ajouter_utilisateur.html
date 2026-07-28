@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>➕ Nouvel utilisateur</h1>
+        <p>Créez un compte employé ou administrateur.</p>
+    </div>
+    <a href="{{ url_for('liste_utilisateurs') }}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Retour
+    </a>
+</div>
+
+<div class="form-card">
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.nom_utilisateur.label }}
+            {{ form.nom_utilisateur(class="form-control") }}
+            {% for e in form.nom_utilisateur.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                {{ form.nom.label }}
+                {{ form.nom(class="form-control") }}
+                {% for e in form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.prenom.label }}
+                {{ form.prenom(class="form-control") }}
+                {% for e in form.prenom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            </div>
+        </div>
+
+        <div class="form-group">
+            {{ form.email.label }}
+            {{ form.email(class="form-control") }}
+            {% for e in form.email.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.telephone.label }}
+            {{ form.telephone(class="form-control") }}
+            {% for e in form.telephone.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.role.label }}
+            {{ form.role(class="form-control") }}
+            {% for e in form.role.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                {{ form.mot_de_passe.label }}
+                {{ form.mot_de_passe(class="form-control") }}
+                {% for e in form.mot_de_passe.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            </div>
+
+            <div class="form-group">
+                {{ form.confirmer_mot_de_passe.label }}
+                {{ form.confirmer_mot_de_passe(class="form-control") }}
+                {% for e in form.confirmer_mot_de_passe.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            </div>
+        </div>
+
+        <div class="form-actions">
+            {{ form.envoyer(class="btn btn-success") }}
+            <a href="{{ url_for('liste_utilisateurs') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "portail_base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>➕ Nouvelle commande</h1>
+        <p>Sélectionnez les produits que vous souhaitez commander.</p>
+    </div>
+    <a href="{{ url_for('portail_commandes') }}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Retour
+    </a>
+</div>
+
+<div class="form-card" style="max-width:720px">
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Produit</th>
+                    <th style="width:120px">Quantité</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for entree in form.lignes %}
+                <tr>
+                    <td>{{ entree.produit(class="form-control") }}</td>
+                    <td>{{ entree.quantite(class="form-control") }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="form-actions" style="margin-top:20px">
+            {{ form.envoyer(class="btn btn-success") }}
+            <a href="{{ url_for('portail_commandes') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

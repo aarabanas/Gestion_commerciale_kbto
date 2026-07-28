@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion — KBTO</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --navy: #0F1B2D;
+            --accent: #3D9B84;
+            --accent-fonce: #2E7A68;
+            --texte: #1A2333;
+            --texte-doux: #6B7280;
+            --fond: #F5F6F9;
+            --champ-bord: #E4E7EC;
+            --danger: #C0392B;
+            --danger-fond: #FBEAE8;
+            --succes: #2E7A68;
+            --succes-fond: #E7F3F0;
+            --info: #3D6B9B;
+            --info-fond: #E8EFF6;
+            --rayon: 16px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--texte);
+            background: var(--fond);
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        .carte {
+            width: 100%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: var(--rayon);
+            box-shadow: 0 12px 36px rgba(15, 27, 45, 0.10);
+            overflow: hidden;
+        }
+
+        /* ---------- Illustration ---------- */
+        .illustration {
+            position: relative;
+            height: 170px;
+            background: radial-gradient(circle at 70% 20%, #1E2E4A 0%, var(--navy) 55%, #0A121F 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .illustration .etoile {
+            position: absolute;
+            background: #fff;
+            border-radius: 50%;
+            opacity: 0.85;
+        }
+
+        .illustration .astronaute {
+            position: relative;
+            z-index: 2;
+            font-size: 54px;
+            color: #EDEFF4;
+            filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
+        }
+
+        .illustration .sol {
+            position: absolute;
+            bottom: -30px;
+            left: -10%;
+            width: 120%;
+            height: 60px;
+            background: #E7E9EE;
+            border-radius: 50%;
+        }
+
+        /* ---------- Contenu ---------- */
+        .contenu { padding: 30px 32px 34px; }
+
+        .marque {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .marque .badge {
+            width: 30px; height: 30px;
+            border-radius: 9px;
+            background: var(--accent);
+            color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 800;
+            font-size: 12px;
+        }
+        .marque span {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 13.5px;
+            color: var(--texte-doux);
+            letter-spacing: 0.03em;
+        }
+
+        h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 23px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .sous-titre {
+            color: var(--texte-doux);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .champ { margin-bottom: 16px; }
+        .champ label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--texte);
+            margin-bottom: 7px;
+        }
+        .champ-icone { position: relative; }
+        .champ-icone i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--texte-doux);
+            font-size: 13.5px;
+        }
+        .champ-icone input {
+            width: 100%;
+            padding: 12px 14px 12px 38px;
+            font-size: 14.5px;
+            font-family: inherit;
+            color: var(--texte);
+            background: #fff;
+            border: 1px solid var(--champ-bord);
+            border-radius: 10px;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .champ-icone input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(61, 155, 132, 0.14);
+        }
+        .champ .erreur {
+            display: block;
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .ligne-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--texte-doux);
+            cursor: pointer;
+        }
+        .checkbox input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+
+        .btn-connexion {
+            width: 100%;
+            padding: 13px;
+            font-size: 14.5px;
+            font-weight: 600;
+            font-family: inherit;
+            color: #fff;
+            background: var(--navy);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background .15s;
+        }
+        .btn-connexion:hover { background: #16273D; }
+
+        .separateur {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 22px 0 16px;
+            color: var(--texte-doux);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .separateur::before, .separateur::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--champ-bord);
+        }
+
+        .btn-social {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 11px;
+            font-size: 13.5px;
+            font-weight: 600;
+            font-family: inherit;
+            border-radius: 10px;
+            border: 1px solid var(--champ-bord);
+            background: #fff;
+            color: var(--texte);
+            cursor: pointer;
+            text-decoration: none;
+            margin-bottom: 10px;
+            transition: background .15s, border-color .15s;
+        }
+        .btn-social:hover { background: #FAFBFC; border-color: #C7CDD6; }
+        .btn-social.github { background: #17181B; color: #fff; border-color: #17181B; }
+        .btn-social.github:hover { background: #2A2C31; }
+        .btn-social svg { width: 17px; height: 17px; flex-shrink: 0; }
+
+        .pied {
+            text-align: center;
+            color: var(--texte-doux);
+            font-size: 13.5px;
+            margin-top: 20px;
+        }
+        .pied a { color: var(--accent); font-weight: 600; text-decoration: none; }
+        .pied a:hover { text-decoration: underline; }
+
+        .flash {
+            padding: 11px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-bottom: 18px;
+            border: 1px solid transparent;
+        }
+        .flash-danger  { background: var(--danger-fond); color: var(--danger); border-color: #FECACA; }
+        .flash-success { background: var(--succes-fond); color: var(--succes); border-color: #A7F3D0; }
+        .flash-info    { background: var(--info-fond);   color: var(--info);   border-color: #BFDBFE; }
+    </style>
+</head>
+<body>
+
+    <div class="carte">
+
+        <div class="illustration">
+            <span class="etoile" style="width:3px;height:3px;top:18%;left:12%;"></span>
+            <span class="etoile" style="width:2px;height:2px;top:30%;left:28%;"></span>
+            <span class="etoile" style="width:3px;height:3px;top:15%;left:75%;"></span>
+            <span class="etoile" style="width:2px;height:2px;top:55%;left:85%;"></span>
+            <span class="etoile" style="width:2px;height:2px;top:65%;left:20%;"></span>
+            <span class="etoile" style="width:3px;height:3px;top:40%;left:55%;"></span>
+            <span class="etoile" style="width:2px;height:2px;top:22%;left:45%;"></span>
+            <i class="fa-solid fa-user-astronaut astronaute"></i>
+            <div class="sol"></div>
+        </div>
+
+        <div class="contenu">
+
+            <div class="marque">
+                <div class="badge">KB</div>
+                <span>KBTO — Conseiller fiscal</span>
+            </div>
+
+            <h1>Bon retour</h1>
+            <p class="sous-titre">Connectez-vous pour accéder à votre espace.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% for categorie, message in messages %}
+                    <div class="flash flash-{{ categorie }}">{{ message }}</div>
+                {% endfor %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('connexion') }}" novalidate>
+                {{ form.hidden_tag() }}
+
+                <div class="champ">
+                    {{ form.nom_utilisateur.label }}
+                    <div class="champ-icone">
+                        <i class="fa-solid fa-at"></i>
+                        {{ form.nom_utilisateur(placeholder="nom@exemple.com") }}
+                    </div>
+                    {% for erreur in form.nom_utilisateur.errors %}
+                        <span class="erreur">{{ erreur }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="champ">
+                    {{ form.mot_de_passe.label }}
+                    <div class="champ-icone">
+                        <i class="fa-solid fa-lock"></i>
+                        {{ form.mot_de_passe(placeholder="Votre mot de passe") }}
+                    </div>
+                    {% for erreur in form.mot_de_passe.errors %}
+                        <span class="erreur">{{ erreur }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="ligne-options">
+                    <label class="checkbox">
+                        {{ form.se_souvenir() }} Se souvenir de moi
+                    </label>
+                </div>
+
+                {{ form.envoyer(class="btn-connexion") }}
+            </form>
+
+            <div class="separateur">Ou continuer avec</div>
+
+            <a class="btn-social" href="{{ url_for('connexion_oauth', fournisseur='google') }}">
+                <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.3 0 10.1-2 13.7-5.4l-6.3-5.3C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.3 5.3C39.7 37 44 31 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+                Continuer avec Google
+            </a>
+
+            <a class="btn-social github" href="{{ url_for('connexion_oauth', fournisseur='github') }}">
+                <i class="fa-brands fa-github" style="font-size:17px;"></i>
+                Continuer avec GitHub
+            </a>
+
+            <p class="pied">
+                Vous êtes un client ? <a href="{{ url_for('inscription') }}">Créer un compte</a>
+            </p>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

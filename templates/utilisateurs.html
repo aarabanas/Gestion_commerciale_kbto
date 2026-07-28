@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>🛡️ Utilisateurs</h1>
+        <p>Gérez les comptes ayant accès à l'application.</p>
+    </div>
+    <a href="{{ url_for('ajouter_utilisateur') }}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Nouvel utilisateur
+    </a>
+</div>
+
+<div class="section">
+
+    <div class="section-header">
+        <h2>Liste des utilisateurs</h2>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nom d'utilisateur</th>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for utilisateur in utilisateurs %}
+            <tr>
+                <td>{{ utilisateur.nom_utilisateur }}</td>
+                <td>{{ utilisateur.nom }} {{ utilisateur.prenom }}</td>
+                <td>{{ utilisateur.email }}</td>
+                <td>
+                    {% if utilisateur.role == 'administrateur' %}
+                        <span class="badge payee">Administrateur</span>
+                    {% else %}
+                        <span class="badge attente">Employé</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('modifier_utilisateur', id=utilisateur.id) }}" class="btn btn-warning">Modifier</a>
+                    {% if utilisateur.id != current_user.id %}
+                    <form method="POST" action="{{ url_for('supprimer_utilisateur', id=utilisateur.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Supprimer cet utilisateur ?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5" class="empty">Aucun utilisateur enregistré.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endblock %}

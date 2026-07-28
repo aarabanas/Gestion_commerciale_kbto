@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KBTO — Espace client</title>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+
+</head>
+
+<body>
+
+<div class="layout">
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            <div class="logo-circle">KB</div>
+            <h2>KBTO</h2>
+            <p>Espace client</p>
+        </div>
+
+        <ul class="menu">
+            <li>
+                <a href="{{ url_for('portail_tableau_de_bord') }}" class="{{ 'actif' if request.endpoint == 'portail_tableau_de_bord' else '' }}">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Tableau de bord</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('portail_produits') }}" class="{{ 'actif' if request.endpoint == 'portail_produits' else '' }}">
+                    <i class="fa-solid fa-box"></i>
+                    <span>Produits</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('portail_commandes') }}" class="{{ 'actif' if request.endpoint in ['portail_commandes', 'portail_ajouter_commande', 'portail_detail_facture'] else '' }}">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                    <span>Commandes</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('portail_factures') }}" class="{{ 'actif' if request.endpoint == 'portail_factures' else '' }}">
+                    <i class="fa-solid fa-file-invoice"></i>
+                    <span>Factures</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('portail_paiements') }}" class="{{ 'actif' if request.endpoint == 'portail_paiements' else '' }}">
+                    <i class="fa-solid fa-credit-card"></i>
+                    <span>Paiements</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('portail_profil') }}" class="{{ 'actif' if request.endpoint == 'portail_profil' else '' }}">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span>Profil</span>
+                </a>
+            </li>
+        </ul>
+
+    </aside>
+
+    <div class="main">
+
+        <header class="topbar">
+            <div style="display:flex; align-items:center; gap:28px; flex:1; min-width:0;">
+
+                <div style="flex-shrink:0;">
+                    <h1>Bonjour {{ current_user.prenom }} 👋</h1>
+                    <small>Bienvenue dans votre espace client.</small>
+                </div>
+
+                <form method="GET" action="{{ url_for('portail_produits') }}" class="topbar-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="recherche" placeholder="Rechercher un produit..." value="{{ request.args.get('recherche', '') }}">
+                </form>
+
+            </div>
+
+            <div style="display:flex; align-items:center; gap:16px;">
+                {% include "_notifications.html" %}
+
+                <form method="POST" action="{{ url_for('deconnexion') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        Déconnexion
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for categorie, message in messages %}
+                    <div class="flash {{ categorie }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="page">
+            {% block contenu %}
+            {% endblock %}
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

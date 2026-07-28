@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>🧾 Factures</h1>
+        <p>Consultez et gérez vos factures.</p>
+    </div>
+    <a href="{{ url_for('ajouter_facture') }}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Nouvelle facture
+    </a>
+</div>
+
+<div class="dashboard-grid">
+
+    <div class="card green">
+        <div class="card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div class="card-content">
+            <h4>Total facturé</h4>
+            <h1>{{ "%.2f"|format(total_facture) }} DH</h1>
+        </div>
+    </div>
+
+    <div class="card blue">
+        <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="card-content">
+            <h4>Total payé</h4>
+            <h1>{{ "%.2f"|format(total_paye) }} DH</h1>
+        </div>
+    </div>
+
+    <div class="card orange">
+        <div class="card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+        <div class="card-content">
+            <h4>En attente</h4>
+            <h1>{{ nb_attente }}</h1>
+        </div>
+    </div>
+
+    <div class="card purple">
+        <div class="card-icon"><i class="fa-solid fa-paper-plane"></i></div>
+        <div class="card-content">
+            <h4>Envoyées au client</h4>
+            <h1>{{ nb_envoyees }} / {{ factures|length }}</h1>
+        </div>
+    </div>
+
+</div>
+
+<div class="section">
+
+    <div class="section-header">
+        <h2>Liste des factures</h2>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Client</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th>Envoyée</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for facture in factures %}
+            <tr>
+                <td>{{ facture.numero }}</td>
+                <td>
+                    {% if facture.client %}{{ facture.client.nom }} {{ facture.client.prenom }}{% else %}—{% endif %}
+                </td>
+                <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
+                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                <td>
+                    {% if facture.statut == 'payee' %}
+                        <span class="badge payee">{{ facture.statut_libelle }}</span>
+                    {% elif facture.statut == 'annulee' %}
+                        <span class="badge annulee">{{ facture.statut_libelle }}</span>
+                    {% else %}
+                        <span class="badge attente">{{ facture.statut_libelle }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if facture.envoyee %}
+                        <i class="fa-solid fa-check" style="color:var(--accent-dark)"></i>
+                    {% else %}
+                        <i class="fa-solid fa-xmark" style="color:var(--muted)"></i>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('detail_facture', id=facture.id) }}" class="btn btn-info">Voir</a>
+                    <a href="{{ url_for('facture_pdf', id=facture.id) }}" class="btn btn-secondary">PDF</a>
+                    <a href="{{ url_for('facture_imprimer', id=facture.id) }}" class="btn btn-secondary" target="_blank">Imprimer</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7" class="empty">Aucune facture enregistrée.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endblock %}

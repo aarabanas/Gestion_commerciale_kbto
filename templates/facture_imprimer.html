@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Facture {{ facture.numero }} — Impression</title>
+    <style>
+        :root{
+            --navy:#0F1B2D;
+            --ink:#1A2333;
+            --muted:#6B7280;
+            --line:#E4E7EC;
+            --accent:#3D9B84;
+        }
+        * { box-sizing: border-box; }
+        body{
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: var(--ink);
+            max-width: 780px;
+            margin: 40px auto;
+            padding: 0 24px;
+        }
+        .barre-actions{
+            display:flex;
+            justify-content:flex-end;
+            gap:10px;
+            margin-bottom:24px;
+        }
+        .barre-actions button{
+            padding:10px 18px;
+            border-radius:8px;
+            border:1px solid var(--line);
+            background:#fff;
+            font-size:13.5px;
+            font-weight:600;
+            cursor:pointer;
+        }
+        .barre-actions .principal{
+            background: var(--accent);
+            color:#fff;
+            border-color: var(--accent);
+        }
+        .entete{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            border-bottom: 2px solid var(--navy);
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+        }
+        .entete .logo{
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+        .entete .logo img{
+            width:48px; height:48px; object-fit:contain;
+        }
+        .entete .logo-cercle{
+            width:48px; height:48px; border-radius:50%;
+            background:var(--navy); color:#fff;
+            display:flex; align-items:center; justify-content:center;
+            font-weight:700; font-size:16px;
+        }
+        .entete h1{ font-size:20px; margin:0 0 4px; }
+        .entete .infos-entreprise{ font-size:12.5px; color:var(--muted); max-width:320px; }
+        .entete .numero-facture{ text-align:right; }
+        .entete .numero-facture h2{ font-size:18px; margin:0 0 4px; color:var(--navy); }
+        .entete .numero-facture span{ font-size:12.5px; color:var(--muted); }
+
+        .bloc-client{
+            margin-bottom: 24px;
+            font-size: 13.5px;
+        }
+        .bloc-client small{
+            display:block;
+            text-transform:uppercase;
+            letter-spacing:.04em;
+            color:var(--muted);
+            font-size:11px;
+            margin-bottom:4px;
+        }
+
+        table.lignes{
+            width:100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        table.lignes th{
+            text-align:left;
+            font-size:11.5px;
+            text-transform:uppercase;
+            color:#fff;
+            background:var(--navy);
+            padding:9px 10px;
+        }
+        table.lignes td{
+            padding:9px 10px;
+            border-bottom:1px solid var(--line);
+            font-size:13px;
+        }
+        table.lignes th:last-child, table.lignes td:last-child,
+        table.lignes th:nth-child(2), table.lignes td:nth-child(2),
+        table.lignes th:nth-child(3), table.lignes td:nth-child(3){
+            text-align:right;
+        }
+
+        .totaux{
+            width:280px;
+            margin-left:auto;
+            font-size:13.5px;
+        }
+        .totaux .ligne{
+            display:flex;
+            justify-content:space-between;
+            padding:6px 0;
+        }
+        .totaux .ttc{
+            border-top:1.5px solid var(--ink);
+            font-weight:700;
+            font-size:15px;
+            margin-top:4px;
+        }
+
+        .pied{
+            margin-top:48px;
+            padding-top:16px;
+            border-top:1px solid var(--line);
+            font-size:11.5px;
+            color:var(--muted);
+            text-align:center;
+        }
+
+        @media print{
+            .barre-actions{ display:none; }
+            body{ margin:0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="barre-actions">
+        <button onclick="window.close()">Fermer</button>
+        <button class="principal" onclick="window.print()">🖨️ Imprimer / Enregistrer en PDF</button>
+    </div>
+
+    <div class="entete">
+        <div class="logo">
+            {% if params.logo %}
+                <img src="{{ url_for('static', filename='uploads/' ~ params.logo) }}" alt="Logo">
+            {% else %}
+                <div class="logo-cercle">{{ (params.nom_entreprise or "KB")[:2]|upper }}</div>
+            {% endif %}
+            <div>
+                <h1>{{ params.nom_entreprise or "KBTO" }}</h1>
+                <div class="infos-entreprise">
+                    {% if params.identifiant_fiscal %}IF : {{ params.identifiant_fiscal }} · {% endif %}
+                    {{ params.adresse or "" }}
+                    {% if params.telephone %}· {{ params.telephone }}{% endif %}
+                    {% if params.email %}· {{ params.email }}{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="numero-facture">
+            <h2>Facture {{ facture.numero }}</h2>
+            <span>Date : {{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</span>
+        </div>
+    </div>
+
+    <div class="bloc-client">
+        <small>Facturé à</small>
+        {% if facture.client %}
+            {{ facture.client.nom }} {{ facture.client.prenom }}
+            {% if facture.client.email %}— {{ facture.client.email }}{% endif %}
+            {% if facture.client.adresse %}<br>{{ facture.client.adresse }}{% endif %}
+        {% else %}
+            Client non renseigné
+        {% endif %}
+    </div>
+
+    <table class="lignes">
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Prix unitaire</th>
+                <th>Sous-total</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ligne in facture.details %}
+            <tr>
+                <td>{% if ligne.produit %}{{ ligne.produit.nom }}{% else %}—{% endif %}</td>
+                <td>{{ ligne.quantite }}</td>
+                <td>{{ "%.2f"|format(ligne.prix_unitaire) }} DH</td>
+                <td>{{ "%.2f"|format(ligne.prix_unitaire * ligne.quantite) }} DH</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="4" style="text-align:center; color:var(--muted);">Aucun produit sur cette facture.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="totaux">
+        <div class="ligne"><span>Total HT</span><span>{{ "%.2f"|format(montant_ht) }} DH</span></div>
+        <div class="ligne"><span>TVA ({{ "%.2f"|format(params.taux_tva or 0) }} %)</span><span>{{ "%.2f"|format(montant_tva) }} DH</span></div>
+        <div class="ligne ttc"><span>Total TTC</span><span>{{ "%.2f"|format(montant_ttc) }} DH</span></div>
+    </div>
+
+    <div class="pied">
+        Merci pour votre confiance. Cette facture a été générée automatiquement par {{ params.nom_entreprise or "KBTO" }}.
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,96 @@
+{% extends "portail_base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>🧾 Facture {{ facture.numero }}</h1>
+        <p>Détail de votre commande.</p>
+    </div>
+    <div>
+        <a href="{{ url_for('portail_facture_imprimer', id=facture.id) }}" class="btn btn-secondary" target="_blank">
+            <i class="fa-solid fa-print"></i> Imprimer
+        </a>
+        <a href="{{ url_for('portail_facture_pdf', id=facture.id) }}" class="btn btn-info">
+            <i class="fa-solid fa-file-pdf"></i> Télécharger PDF
+        </a>
+        <a href="{{ url_for('portail_commandes') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="section">
+    <div class="invoice-meta">
+        <div class="item">
+            <small>Date</small>
+            <strong>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</strong>
+        </div>
+        <div class="item">
+            <small>Statut</small>
+            <strong>
+                {% if facture.statut == 'payee' %}
+                    <span class="badge payee">Payée</span>
+                {% elif facture.statut == 'annulee' %}
+                    <span class="badge annulee">Annulée</span>
+                {% else %}
+                    <span class="badge attente">En attente</span>
+                {% endif %}
+            </strong>
+        </div>
+        <div class="item">
+            <small>Total</small>
+            <strong>{{ "%.2f"|format(facture.total or 0) }} DH</strong>
+        </div>
+    </div>
+
+    {% if facture.statut != 'payee' %}
+    <div style="margin-top:16px">
+        {% if cle_stripe_configuree %}
+        <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-credit-card"></i> Payer maintenant
+            </button>
+        </form>
+        {% else %}
+        <p class="empty" style="text-align:left; padding:0;">Le paiement en ligne n'est pas encore configuré.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Produits commandés</h2>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Prix unitaire</th>
+                <th>Sous-total</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for ligne in facture.details %}
+            <tr>
+                <td>{% if ligne.produit %}{{ ligne.produit.nom }}{% else %}—{% endif %}</td>
+                <td>{{ ligne.quantite }}</td>
+                <td>{{ "%.2f"|format(ligne.prix_unitaire) }} DH</td>
+                <td>{{ "%.2f"|format(ligne.prix_unitaire * ligne.quantite) }} DH</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="4" class="empty">Aucun produit sur cette commande.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="invoice-total">Total : {{ "%.2f"|format(facture.total or 0) }} DH</div>
+</div>
+
+{% endblock %}

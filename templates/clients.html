@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>👥 Clients</h1>
+        <p>Gérez votre portefeuille clients.</p>
+    </div>
+    <a href="{{ url_for('ajouter_client') }}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Nouveau client
+    </a>
+</div>
+
+<div class="section">
+
+    <div class="section-header">
+        <h2>Liste des clients</h2>
+    </div>
+
+    <form method="GET" class="search-box">
+        <input
+            type="text"
+            class="form-control"
+            name="recherche"
+            placeholder="Rechercher un client..."
+            value="{{ recherche }}"
+        >
+        <button type="submit" class="btn btn-primary">Rechercher</button>
+    </form>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Prénom</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for client in clients %}
+            <tr>
+                <td>{{ client.nom }}</td>
+                <td>{{ client.prenom }}</td>
+                <td>{{ client.email or "—" }}</td>
+                <td>{{ client.telephone or "—" }}</td>
+                <td>
+                    <a href="{{ url_for('modifier_client', id=client.id) }}" class="btn btn-warning">Modifier</a>
+                    {% if current_user.role == 'administrateur' %}
+                    <form method="POST" action="{{ url_for('supprimer_client', id=client.id) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Supprimer ce client ?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5" class="empty">Aucun client enregistré.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% endblock %}

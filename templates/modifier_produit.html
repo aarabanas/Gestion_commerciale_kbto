@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>✏️ Modifier le produit</h1>
+        <p>Mettez à jour les informations du produit.</p>
+    </div>
+    <a href="{{ url_for('liste_produits') }}" class="btn btn-secondary">
+        <i class="fa-solid fa-arrow-left"></i> Retour
+    </a>
+</div>
+
+<div class="form-card">
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.nom.label }}
+            {{ form.nom(class="form-control") }}
+            {% for e in form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.categorie.label }}
+            {{ form.categorie(class="form-control") }}
+            {% for e in form.categorie.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.prix.label }}
+            {{ form.prix(class="form-control") }}
+            {% for e in form.prix.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.quantite.label }}
+            {{ form.quantite(class="form-control") }}
+            {% for e in form.quantite.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-group">
+            {{ form.description.label }}
+            {{ form.description(class="form-control") }}
+            {% for e in form.description.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        </div>
+
+        <div class="form-actions">
+            {{ form.envoyer(class="btn btn-success") }}
+            <a href="{{ url_for('liste_produits') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+{% endblock %}

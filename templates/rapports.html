@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>📈 Rapports</h1>
+        <p>Chiffre d'affaires facturé, montants payés et répartition par mois.</p>
+    </div>
+</div>
+
+<div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
+
+    <div class="card blue">
+        <div class="card-icon"><i class="fa-solid fa-file-invoice"></i></div>
+        <div class="card-content">
+            <h4>Total facturé</h4>
+            <h1>{{ "%.2f"|format(chiffre_affaires_total) }} DH</h1>
+        </div>
+    </div>
+
+    <div class="card green">
+        <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="card-content">
+            <h4>Total payé</h4>
+            <h1>{{ "%.2f"|format(total_paye) }} DH</h1>
+        </div>
+    </div>
+
+    <div class="card purple">
+        <div class="card-icon"><i class="fa-solid fa-hashtag"></i></div>
+        <div class="card-content">
+            <h4>Factures émises</h4>
+            <h1>{{ nb_factures }}</h1>
+        </div>
+    </div>
+
+</div>
+
+<div class="section">
+
+    <div class="section-header">
+        <h2>Facturé vs payé, par mois</h2>
+    </div>
+
+    {% if barres %}
+    <div class="bars-chart">
+        {% for barre in barres %}
+        <div class="groupe">
+            <div class="colonnes">
+                <div class="barre facture" style="height: {{ barre.pct_facture }}%"
+                     title="Facturé : {{ '%.2f'|format(barre.facture) }} DH"></div>
+                <div class="barre payee" style="height: {{ barre.pct_payee }}%"
+                     title="Payé : {{ '%.2f'|format(barre.payee) }} DH"></div>
+            </div>
+            <div class="mois-label">{{ barre.label }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="bars-chart-legende">
+        <span><span class="legende-dot" style="background:var(--blue)"></span> Facturé</span>
+        <span><span class="legende-dot" style="background:var(--accent)"></span> Payé</span>
+    </div>
+    {% else %}
+    <p class="empty">Aucune facture enregistrée pour le moment.</p>
+    {% endif %}
+
+</div>
+
+<div class="section">
+
+    <div class="section-header">
+        <h2>Factures payées, par mois</h2>
+    </div>
+
+    {% if repartition_payees %}
+        {% for groupe in repartition_payees %}
+        <div class="mois-groupe-titre">{{ groupe.mois }} — {{ "%.2f"|format(groupe.total) }} DH</div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>Client</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for facture in groupe.factures %}
+                <tr>
+                    <td>{{ facture.numero }}</td>
+                    <td>{% if facture.client %}{{ facture.client.nom }} {{ facture.client.prenom }}{% else %}—{% endif %}</td>
+                    <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
+                    <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+    {% else %}
+        <p class="empty">Aucune facture payée pour le moment.</p>
+    {% endif %}
+
+</div>
+
+{% endblock %}

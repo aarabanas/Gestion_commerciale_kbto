@@ -1,0 +1,87 @@
+{% extends "portail_base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>📊 Mon tableau de bord</h1>
+        <p>Résumé de vos achats chez KBTO.</p>
+    </div>
+    <a href="{{ url_for('portail_ajouter_commande') }}" class="btn btn-primary">
+        <i class="fa-solid fa-plus"></i> Nouvelle commande
+    </a>
+</div>
+
+<div class="dashboard-grid">
+
+    <div class="card blue">
+        <div class="card-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+        <div class="card-content">
+            <h4>Commandes passées</h4>
+            <h1>{{ nb_commandes }}</h1>
+        </div>
+    </div>
+
+    <div class="card green">
+        <div class="card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div class="card-content">
+            <h4>Montant total des factures</h4>
+            <h1>{{ "%.2f"|format(montant_total) }} DH</h1>
+        </div>
+    </div>
+
+    <div class="card orange">
+        <div class="card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+        <div class="card-content">
+            <h4>Commandes en cours</h4>
+            <h1>{{ nb_en_cours }}</h1>
+        </div>
+    </div>
+
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Dernières commandes</h2>
+        <a href="{{ url_for('portail_commandes') }}" class="btn btn-primary">Voir tout</a>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for commande in dernieres_commandes %}
+            <tr>
+                <td>{{ commande.numero }}</td>
+                <td>{{ commande.date.strftime('%d/%m/%Y') if commande.date else "—" }}</td>
+                <td>{{ "%.2f"|format(commande.total or 0) }} DH</td>
+                <td>
+                    {% if commande.statut == 'payee' %}
+                        <span class="badge payee">{{ commande.statut_libelle }}</span>
+                    {% elif commande.statut == 'annulee' %}
+                        <span class="badge annulee">{{ commande.statut_libelle }}</span>
+                    {% else %}
+                        <span class="badge attente">{{ commande.statut_libelle }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('portail_detail_facture', id=commande.id) }}" class="btn btn-info">Voir</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5" class="empty">Aucune commande pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

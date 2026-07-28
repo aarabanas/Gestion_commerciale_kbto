@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créer un compte — KBTO</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --marque:        #0F1B2D;
+            --marque-clair:  #16273D;
+            --accent:        #3D9B84;
+            --accent-fonce:  #2E7A68;
+
+            --texte:         #1A2333;
+            --texte-doux:    #6B7280;
+            --fond:          #F6F7F9;
+            --champ-bord:    #E4E7EC;
+            --champ-fond:    #FFFFFF;
+
+            --danger:        #C0392B;
+            --danger-fond:   #FBEAE8;
+            --succes:        #2E7A68;
+            --succes-fond:   #E7F3F0;
+            --info:          #3D6B9B;
+            --info-fond:     #E8EFF6;
+
+            --rayon: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: var(--texte);
+            background: var(--fond);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 100vh;
+        }
+
+        .col-form {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 24px;
+        }
+
+        .form-box { width: 100%; max-width: 420px; }
+
+        .logo { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+        .logo-badge {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: var(--marque);
+            color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 18px; letter-spacing: 0.5px;
+        }
+        .logo-texte { line-height: 1.2; }
+        .logo-texte strong { display: block; font-size: 15px; font-weight: 600; }
+        .logo-texte span { font-size: 13px; color: var(--texte-doux); }
+
+        .form-box h1 {
+            font-family: 'Manrope', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .form-box .sous-titre {
+            color: var(--texte-doux);
+            font-size: 14.5px;
+            margin-bottom: 24px;
+        }
+        .form-box .connexion-lien {
+            color: var(--texte-doux);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .form-box .connexion-lien a { color: var(--accent); font-weight: 600; text-decoration: none; }
+        .form-box .connexion-lien a:hover { text-decoration: underline; }
+
+        .grille-champs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 16px;
+        }
+
+        .champ { margin-bottom: 16px; }
+        .champ label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--texte);
+            margin-bottom: 7px;
+        }
+        .champ input {
+            width: 100%;
+            padding: 11px 13px;
+            font-size: 14.5px;
+            font-family: inherit;
+            color: var(--texte);
+            background: var(--champ-fond);
+            border: 1px solid var(--champ-bord);
+            border-radius: var(--rayon);
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .champ input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+        }
+        .champ .erreur {
+            display: block;
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            color: #fff;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--rayon);
+            cursor: pointer;
+            transition: background .15s;
+            margin-top: 6px;
+        }
+        .btn:hover { background: var(--accent-fonce); }
+
+        .flash {
+            padding: 12px 14px;
+            border-radius: var(--rayon);
+            font-size: 14px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+        }
+        .flash-danger  { background: var(--danger-fond); color: var(--danger); border-color: #FECACA; }
+        .flash-success { background: var(--succes-fond); color: var(--succes); border-color: #A7F3D0; }
+        .flash-info    { background: var(--info-fond);   color: var(--info);   border-color: #BFDBFE; }
+
+        .col-marque {
+            background: var(--marque);
+            color: #fff;
+            padding: 56px 48px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .col-marque h2 {
+            font-family: 'Manrope', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.25;
+            margin-bottom: 14px;
+        }
+        .col-marque .accroche {
+            font-size: 16px;
+            color: #CBD5E1;
+            line-height: 1.6;
+            max-width: 420px;
+        }
+
+        @media (max-width: 860px) {
+            .page { grid-template-columns: 1fr; }
+            .col-marque { display: none; }
+            .grille-champs { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+
+        <div class="col-form">
+            <div class="form-box">
+
+                <div class="logo">
+                    <div class="logo-badge">KB</div>
+                    <div class="logo-texte">
+                        <strong>KBTO</strong>
+                        <span>Espace client</span>
+                    </div>
+                </div>
+
+                <h1>Créer votre compte client</h1>
+                <p class="sous-titre">Suivez vos commandes et vos factures en ligne.</p>
+                <p class="connexion-lien">
+                    Déjà un compte ? <a href="{{ url_for('connexion') }}">Se connecter</a>
+                </p>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for categorie, message in messages %}
+                        <div class="flash flash-{{ categorie }}">{{ message }}</div>
+                    {% endfor %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('inscription') }}" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="grille-champs">
+                        <div class="champ">
+                            {{ form.nom.label }}
+                            {{ form.nom(placeholder="Votre nom") }}
+                            {% for erreur in form.nom.errors %}<span class="erreur">{{ erreur }}</span>{% endfor %}
+                        </div>
+                        <div class="champ">
+                            {{ form.prenom.label }}
+                            {{ form.prenom(placeholder="Votre prénom") }}
+                            {% for erreur in form.prenom.errors %}<span class="erreur">{{ erreur }}</span>{% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="champ">
+                        {{ form.email.label }}
+                        {{ form.email(placeholder="vous@exemple.com") }}
+                        {% for erreur in form.email.errors %}<span class="erreur">{{ erreur }}</span>{% endfor %}
+                    </div>
+
+                    <div class="grille-champs">
+                        <div class="champ">
+                            {{ form.telephone.label }}
+                            {{ form.telephone(placeholder="Facultatif") }}
+                        </div>
+                        <div class="champ">
+                            {{ form.adresse.label }}
+                            {{ form.adresse(placeholder="Facultatif") }}
+                        </div>
+                    </div>
+
+                    <div class="grille-champs">
+                        <div class="champ">
+                            {{ form.mot_de_passe.label }}
+                            {{ form.mot_de_passe(placeholder="••••••••") }}
+                            {% for erreur in form.mot_de_passe.errors %}<span class="erreur">{{ erreur }}</span>{% endfor %}
+                        </div>
+                        <div class="champ">
+                            {{ form.confirmer_mot_de_passe.label }}
+                            {{ form.confirmer_mot_de_passe(placeholder="••••••••") }}
+                            {% for erreur in form.confirmer_mot_de_passe.errors %}<span class="erreur">{{ erreur }}</span>{% endfor %}
+                        </div>
+                    </div>
+
+                    {{ form.envoyer(class="btn") }}
+                </form>
+
+            </div>
+        </div>
+
+        <div class="col-marque">
+            <h2>Votre espace client,<br>simple et rapide.</h2>
+            <p class="accroche">
+                Passez vos commandes, suivez vos factures et consultez vos
+                paiements depuis un seul endroit.
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>

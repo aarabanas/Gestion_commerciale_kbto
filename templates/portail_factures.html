@@ -1,0 +1,70 @@
+{% extends "portail_base.html" %}
+
+{% block contenu %}
+
+<div class="page-header">
+    <div>
+        <h1>🧾 Mes factures</h1>
+        <p>Consultez, téléchargez ou imprimez vos factures.</p>
+    </div>
+</div>
+
+<div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
+
+    <div class="card green">
+        <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="card-content">
+            <h4>Total payé</h4>
+            <h1>{{ "%.2f"|format(total_paye) }} DH</h1>
+        </div>
+    </div>
+
+    <div class="card orange">
+        <div class="card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+        <div class="card-content">
+            <h4>Total impayé</h4>
+            <h1>{{ "%.2f"|format(total_impaye) }} DH</h1>
+        </div>
+    </div>
+
+</div>
+
+<div class="section">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Statut</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for facture in factures %}
+            <tr>
+                <td>{{ facture.numero }}</td>
+                <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
+                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                <td>
+                    {% if facture.statut == 'payee' %}
+                        <span class="badge payee">Payée</span>
+                    {% else %}
+                        <span class="badge attente">Impayée</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('portail_detail_facture', id=facture.id) }}" class="btn btn-info">Voir</a>
+                    <a href="{{ url_for('portail_facture_pdf', id=facture.id) }}" class="btn btn-secondary">PDF</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5" class="empty">Aucune facture pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

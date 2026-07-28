@@ -48,9 +48,9 @@
         {% for barre in barres %}
         <div class="groupe">
             <div class="colonnes">
-                <div class="barre facture" style="height: {{ barre.pct_facture }}%"
+                <div class="barre facture" style="--h: {{ barre.pct_facture }}%"
                      title="Facturé : {{ '%.2f'|format(barre.facture) }} DH"></div>
-                <div class="barre payee" style="height: {{ barre.pct_payee }}%"
+                <div class="barre payee" style="--h: {{ barre.pct_payee }}%"
                      title="Payé : {{ '%.2f'|format(barre.payee) }} DH"></div>
             </div>
             <div class="mois-label">{{ barre.label }}</div>

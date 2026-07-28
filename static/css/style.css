@@ -644,6 +644,7 @@ textarea.form-control{resize:vertical; min-height:90px;}
   height:10px;
   border-radius:50%;
   flex-shrink:0;
+  background:var(--couleur);
 }
 
 .mini-clients-grid{
@@ -726,6 +727,7 @@ textarea.form-control{resize:vertical; min-height:90px;}
   width:18px;
   border-radius:4px 4px 0 0;
   min-height:2px;
+  height:var(--h);
 }
 .bars-chart .barre.facture{ background:var(--blue); }
 .bars-chart .barre.payee{ background:var(--accent); }

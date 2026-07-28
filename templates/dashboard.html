@@ -80,7 +80,7 @@
             <ul class="donut-legend">
                 {% for segment in segments_stock %}
                 <li>
-                    <span class="donut-dot" style="background:{{ segment.couleur }}"></span>
+                    <span class="donut-dot" style="--couleur: {{ segment.couleur }}"></span>
                     {{ segment.label }} — {{ segment.valeur|int }} ({{ segment.pourcentage }}%)
                 </li>
                 {% endfor %}

@@ -181,6 +181,16 @@ class FactureForm(FlaskForm):
 # =====================================
 class CommandeClientForm(FlaskForm):
 
+    mode_paiement = SelectField(
+        "Mode de paiement souhaité",
+        choices=[
+            ("cheque", "Chèque"),
+            ("espece", "Espèces"),
+            ("carte", "Carte bancaire"),
+        ],
+        validators=[DataRequired(message="Merci de choisir un mode de paiement.")],
+    )
+
     lignes = FieldList(FormField(LigneCreationForm), min_entries=5, max_entries=5)
 
     envoyer = SubmitField("Passer la commande")

@@ -354,6 +354,15 @@ def injecter_notifications():
                 "url": url_for("liste_factures"),
             })
 
+        nb_a_encaisser = Facture.query.filter(
+            Facture.mode_paiement_prevu.isnot(None), Facture.statut == "attente"
+        ).count()
+        if nb_a_encaisser:
+            alertes.append({
+                "texte": f"{nb_a_encaisser} commande(s) client en attente de règlement (chèque/espèces)",
+                "url": url_for("liste_factures"),
+            })
+
     return {"notifications": alertes, "nb_notifications": len(alertes)}
 
 
@@ -1296,6 +1305,15 @@ def portail_ajouter_commande():
         entree.produit.choices = choix_produits()
 
     if form.validate_on_submit():
+        if form.mode_paiement.data == "carte":
+            flash(
+                "Le paiement par carte bancaire n'est pas encore disponible. "
+                "Merci de choisir « Chèque » ou « Espèces » pour cette commande, "
+                "ou contactez-nous directement.",
+                "danger",
+            )
+            return render_template("portail_ajouter_commande.html", form=form)
+
         lignes_valides = [
             (entree.get("produit") or 0, entree.get("quantite") or 0)
             for entree in form.lignes.data
@@ -1305,7 +1323,11 @@ def portail_ajouter_commande():
         if not lignes_valides:
             flash("Veuillez sélectionner au moins un produit.", "danger")
         else:
-            commande = Facture(client_id=current_user.id, statut="attente")
+            commande = Facture(
+                client_id=current_user.id,
+                statut="attente",
+                mode_paiement_prevu=form.mode_paiement.data,
+            )
             db.session.add(commande)
             db.session.commit()
 
@@ -1314,7 +1336,12 @@ def portail_ajouter_commande():
                 if not ok:
                     flash(message, "danger")
 
-            flash("Commande passée avec succès.", "success")
+            flash(
+                f"Commande passée avec succès. Mode de paiement choisi : "
+                f"{METHODES_PAIEMENT[form.mode_paiement.data]}. "
+                "Notre équipe a été informée.",
+                "success",
+            )
             return redirect(url_for("portail_detail_facture", id=commande.id))
 
     return render_template("portail_ajouter_commande.html", form=form)

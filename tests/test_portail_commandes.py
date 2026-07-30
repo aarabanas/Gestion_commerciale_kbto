@@ -3,8 +3,9 @@ from decimal import Decimal
 from models import DetailFacture, Facture, Produit, db
 
 
-def _donnees_commande(produit_id, quantite):
+def _donnees_commande(produit_id, quantite, mode_paiement="espece"):
     donnees = {
+        "mode_paiement": mode_paiement,
         "lignes-0-produit": produit_id,
         "lignes-0-quantite": quantite,
     }
@@ -32,7 +33,7 @@ def test_client_passe_une_commande(connecte_client, client_avec_compte, un_produ
 
 
 def test_commande_sans_ligne_refusee(connecte_client, client_avec_compte):
-    donnees = {}
+    donnees = {"mode_paiement": "espece"}
     for i in range(5):
         donnees[f"lignes-{i}-produit"] = 0
         donnees[f"lignes-{i}-quantite"] = 1
@@ -40,6 +41,43 @@ def test_commande_sans_ligne_refusee(connecte_client, client_avec_compte):
     connecte_client.post("/portail/commandes/ajouter", data=donnees, follow_redirects=True)
 
     assert Facture.query.filter_by(client_id=client_avec_compte.id).count() == 0
+
+
+def test_commande_enregistre_le_mode_de_paiement_choisi(connecte_client, client_avec_compte, un_produit):
+    connecte_client.post(
+        "/portail/commandes/ajouter",
+        data=_donnees_commande(un_produit.id, 1, mode_paiement="cheque"),
+        follow_redirects=True,
+    )
+    commande = Facture.query.filter_by(client_id=client_avec_compte.id).first()
+    assert commande is not None
+    assert commande.mode_paiement_prevu == "cheque"
+
+
+def test_commande_par_carte_refusee_message_professionnel(connecte_client, client_avec_compte, un_produit):
+    reponse = connecte_client.post(
+        "/portail/commandes/ajouter",
+        data=_donnees_commande(un_produit.id, 1, mode_paiement="carte"),
+        follow_redirects=True,
+    )
+    assert reponse.status_code == 200
+    assert "n'est pas encore disponible" in reponse.get_data(as_text=True)
+    assert Facture.query.filter_by(client_id=client_avec_compte.id).count() == 0
+
+    produit = db.session.get(Produit, un_produit.id)
+    assert produit.quantite == 10  # stock inchange, aucune ligne creee
+
+
+def test_notification_admin_pour_commande_cheque_espece(connecte, client_avec_compte):
+    # Note : ne pas combiner `connecte` et `connecte_client`/`connecte_employe`
+    # dans un meme test (cf. conftest.py) -> la commande "cheque" est creee
+    # directement via l'ORM plutot que par une requete HTTP du client.
+    facture = Facture(client_id=client_avec_compte.id, statut="attente", mode_paiement_prevu="cheque")
+    db.session.add(facture)
+    db.session.commit()
+
+    reponse = connecte.get("/tableau-de-bord")
+    assert "en attente de règlement" in reponse.get_data(as_text=True)
 
 
 def test_client_ne_voit_pas_les_factures_dun_autre_client(connecte_client, une_facture):

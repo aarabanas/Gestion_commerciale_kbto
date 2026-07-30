@@ -83,6 +83,9 @@
                     {% else %}
                         <span class="badge attente">{{ facture.statut_libelle }}</span>
                     {% endif %}
+                    {% if facture.mode_paiement_prevu and facture.statut == 'attente' %}
+                        <br><small style="color:var(--muted)">via {{ facture.mode_paiement_prevu_libelle }}</small>
+                    {% endif %}
                 </td>
                 <td>
                     {% if facture.envoyee %}

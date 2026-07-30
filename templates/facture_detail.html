@@ -56,6 +56,12 @@
                 {% endif %}
             </strong>
         </div>
+        {% if facture.mode_paiement_prevu %}
+        <div class="item">
+            <small>Mode de paiement souhaité par le client</small>
+            <strong><span class="badge attente">{{ facture.mode_paiement_prevu_libelle }}</span></strong>
+        </div>
+        {% endif %}
     </div>
 
     <div class="ligne-ajout" style="margin-top:12px; align-items:start;">

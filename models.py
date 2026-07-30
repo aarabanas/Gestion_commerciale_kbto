@@ -119,6 +119,7 @@ class Facture(db.Model):
     statut = db.Column(db.String(30), default="attente")
     envoyee = db.Column(db.Boolean, nullable=False, default=False)
     date_envoi = db.Column(db.DateTime, nullable=True)
+    mode_paiement_prevu = db.Column(db.String(20), nullable=True)
     client_id = db.Column(db.Integer, db.ForeignKey("clients.id"))
 
     client = db.relationship("Client", back_populates="factures")
@@ -152,6 +153,10 @@ class Facture(db.Model):
     def montant_restant(self):
         reste = (self.total or Decimal("0")) - self.montant_paye
         return reste if reste > 0 else Decimal("0")
+
+    @property
+    def mode_paiement_prevu_libelle(self):
+        return METHODES_PAIEMENT.get(self.mode_paiement_prevu, self.mode_paiement_prevu)
 
     def __repr__(self):
         return f"<Facture #{self.id}>"

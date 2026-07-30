@@ -110,15 +110,10 @@ class ClientForm(FlaskForm):
 # Formulaire Produit
 # =====================================
 CATEGORIES_PRODUIT = [
-    "Processeurs",
-    "Cartes graphiques",
-    "Mémoire RAM",
-    "Stockage",
-    "Cartes mères",
-    "Alimentations",
-    "Boîtiers",
-    "Refroidissement",
-    "Périphériques",
+    "Comptabilité",
+    "Fiscalité",
+    "Social et paie",
+    "Conseil aux entreprises",
     "Autre",
 ]
 

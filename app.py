@@ -48,6 +48,7 @@ from forms import (
     FactureForm,
     InscriptionClientForm,
     LigneFactureForm,
+    PaiementForm,
     StatutFactureForm,
     UtilisateurForm,
     ModifierUtilisateurForm,
@@ -60,8 +61,10 @@ from models import (
     Produit,
     Facture,
     DetailFacture,
+    Paiement,
     Parametres,
     STATUTS_FACTURE,
+    METHODES_PAIEMENT,
     db,
 )
 
@@ -987,12 +990,14 @@ def detail_facture(id):
         return redirect(url_for("detail_facture", id=facture.id))
 
     statut_form = StatutFactureForm(statut=facture.statut)
+    paiement_form = PaiementForm()
 
     return render_template(
         "facture_detail.html",
         facture=facture,
         form=form,
         statut_form=statut_form,
+        paiement_form=paiement_form,
     )
 
 
@@ -1055,6 +1060,47 @@ def marquer_facture_envoyee(id):
     facture.date_envoi = db.func.now()
     db.session.commit()
     flash(f"Facture {facture.numero} marquée comme envoyée au client.", "success")
+    return redirect(url_for("detail_facture", id=id))
+
+
+def enregistrer_paiement(facture, montant, methode, reference=None):
+    """Enregistre un reglement sur une facture et met a jour son statut si le
+    montant total est atteint. Retourne le Paiement cree."""
+    paiement = Paiement(
+        facture_id=facture.id,
+        montant=montant,
+        methode=methode,
+        reference=reference or None,
+    )
+    db.session.add(paiement)
+    db.session.commit()
+
+    total_regle = sum((p.montant for p in facture.paiements), Decimal("0"))
+    if facture.total and total_regle >= facture.total and facture.statut != "annulee":
+        facture.statut = "payee"
+        db.session.commit()
+
+    return paiement
+
+
+@app.route("/factures/<int:id>/paiements/ajouter", methods=["POST"])
+@login_required
+def ajouter_paiement(id):
+    facture = db.session.get(Facture, id)
+    if facture is None:
+        flash("Facture introuvable.", "danger")
+        return redirect(url_for("liste_factures"))
+
+    form = PaiementForm()
+    if form.validate_on_submit():
+        if form.montant.data <= 0:
+            flash("Le montant réglé doit être supérieur à 0.", "danger")
+        else:
+            enregistrer_paiement(facture, form.montant.data, form.methode.data, form.reference.data)
+            flash("Paiement enregistré avec succès.", "success")
+    else:
+        flash("Paiement invalide, merci de vérifier les champs.", "danger")
+
     return redirect(url_for("detail_facture", id=id))
 
 
@@ -1351,13 +1397,19 @@ def portail_facture_imprimer(id):
 @login_required
 def portail_paiements():
     factures = Facture.query.filter_by(client_id=current_user.id).order_by(Facture.date.desc()).all()
-    payees = [f for f in factures if f.statut == "payee"]
-    impayees = [f for f in factures if f.statut != "payee"]
+    impayees = [f for f in factures if f.montant_restant > 0 and f.statut != "annulee"]
+
+    paiements = (
+        Paiement.query.join(Facture)
+        .filter(Facture.client_id == current_user.id)
+        .order_by(Paiement.date_paiement.desc())
+        .all()
+    )
 
     return render_template(
         "portail_paiements.html",
-        payees=payees,
         impayees=impayees,
+        paiements=paiements,
         cle_stripe_configuree=bool(STRIPE_SECRET_KEY),
     )
 
@@ -1369,7 +1421,7 @@ def portail_payer_facture(id):
     if facture is None or facture.client_id != current_user.id:
         abort(404)
 
-    if facture.statut == "payee":
+    if facture.montant_restant <= 0:
         flash("Cette facture est déjà payée.", "info")
         return redirect(url_for("portail_paiements"))
 
@@ -1380,7 +1432,7 @@ def portail_payer_facture(id):
         )
         return redirect(url_for("portail_paiements"))
 
-    montant_centimes = int((facture.total or Decimal("0")) * 100)
+    montant_centimes = int(facture.montant_restant * 100)
 
     session_stripe = stripe.checkout.Session.create(
         mode="payment",
@@ -1410,13 +1462,17 @@ def portail_paiement_succes(id):
 
     session_id = request.args.get("session_id")
     if session_id and STRIPE_SECRET_KEY:
-        session_stripe = stripe.checkout.Session.retrieve(session_id)
-        if session_stripe.payment_status == "paid":
-            facture.statut = "payee"
-            db.session.commit()
-            flash(f"Paiement de la facture {facture.numero} confirmé. Merci !", "success")
+        deja_enregistre = Paiement.query.filter_by(facture_id=facture.id, reference=session_id).first()
+        if deja_enregistre:
+            flash(f"Paiement de la facture {facture.numero} déjà confirmé. Merci !", "success")
         else:
-            flash("Le paiement n'a pas pu être confirmé.", "danger")
+            session_stripe = stripe.checkout.Session.retrieve(session_id)
+            if session_stripe.payment_status == "paid":
+                montant = Decimal(str(session_stripe.amount_total)) / Decimal("100")
+                enregistrer_paiement(facture, montant, "en_ligne", session_id)
+                flash(f"Paiement de la facture {facture.numero} confirmé. Merci !", "success")
+            else:
+                flash("Le paiement n'a pas pu être confirmé.", "danger")
 
     return redirect(url_for("portail_paiements"))
 

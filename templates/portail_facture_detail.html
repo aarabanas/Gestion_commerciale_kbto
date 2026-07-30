@@ -42,22 +42,54 @@
             <small>Total</small>
             <strong>{{ "%.2f"|format(facture.total or 0) }} DH</strong>
         </div>
+        <div class="item">
+            <small>Reste à payer</small>
+            <strong>{{ "%.2f"|format(facture.montant_restant) }} DH</strong>
+        </div>
     </div>
 
-    {% if facture.statut != 'payee' %}
+    {% if facture.statut != 'payee' and facture.montant_restant > 0 %}
     <div style="margin-top:16px">
         {% if cle_stripe_configuree %}
         <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary">
-                <i class="fa-solid fa-credit-card"></i> Payer maintenant
+                <i class="fa-solid fa-credit-card"></i> Payer {{ "%.2f"|format(facture.montant_restant) }} DH en ligne
             </button>
         </form>
         {% else %}
-        <p class="empty" style="text-align:left; padding:0;">Le paiement en ligne n'est pas encore configuré.</p>
+        <p class="empty" style="text-align:left; padding:0;">Le paiement en ligne n'est pas encore configuré. Vous pouvez régler par chèque ou en espèces directement auprès de notre cabinet.</p>
         {% endif %}
     </div>
     {% endif %}
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Historique des paiements</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Moyen de paiement</th>
+                <th>Montant</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for paiement in facture.paiements %}
+            <tr>
+                <td>{{ paiement.date_paiement.strftime('%d/%m/%Y') if paiement.date_paiement else "—" }}</td>
+                <td>{{ paiement.methode_libelle }}</td>
+                <td>{{ "%.2f"|format(paiement.montant) }} DH</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="3" class="empty">Aucun paiement enregistré pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 <div class="section">

@@ -33,7 +33,7 @@
             <tr>
                 <td>{{ facture.numero }}</td>
                 <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
-                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                <td>{{ "%.2f"|format(facture.montant_restant) }} DH</td>
                 <td>
                     {% if cle_stripe_configuree %}
                     <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}" style="display:inline">
@@ -60,21 +60,23 @@
     <table class="table">
         <thead>
             <tr>
-                <th>N°</th>
+                <th>Facture</th>
                 <th>Date</th>
+                <th>Moyen de paiement</th>
                 <th>Montant payé</th>
             </tr>
         </thead>
         <tbody>
-        {% for facture in payees %}
+        {% for paiement in paiements %}
             <tr>
-                <td>{{ facture.numero }}</td>
-                <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
-                <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
+                <td>{{ paiement.facture.numero }}</td>
+                <td>{{ paiement.date_paiement.strftime('%d/%m/%Y') if paiement.date_paiement else "—" }}</td>
+                <td>{{ paiement.methode_libelle }}</td>
+                <td>{{ "%.2f"|format(paiement.montant) }} DH</td>
             </tr>
         {% else %}
             <tr>
-                <td colspan="3" class="empty">Aucun paiement enregistré.</td>
+                <td colspan="4" class="empty">Aucun paiement enregistré.</td>
             </tr>
         {% endfor %}
         </tbody>

@@ -16,6 +16,14 @@ STATUTS_FACTURE = {
     "annulee": "Annulée",
 }
 
+# Moyens de paiement acceptes : code stocke en base -> libelle affiche
+METHODES_PAIEMENT = {
+    "cheque": "Chèque",
+    "carte": "Carte bancaire",
+    "espece": "Espèces",
+    "en_ligne": "Paiement en ligne",
+}
+
 
 # ===========================
 # UTILISATEUR
@@ -120,6 +128,13 @@ class Facture(db.Model):
         lazy=True,
         cascade="all, delete-orphan",
     )
+    paiements = db.relationship(
+        "Paiement",
+        back_populates="facture",
+        lazy=True,
+        cascade="all, delete-orphan",
+        order_by="Paiement.date_paiement",
+    )
 
     @property
     def numero(self):
@@ -128,6 +143,15 @@ class Facture(db.Model):
     @property
     def statut_libelle(self):
         return STATUTS_FACTURE.get(self.statut, self.statut)
+
+    @property
+    def montant_paye(self):
+        return sum((p.montant for p in self.paiements), Decimal("0"))
+
+    @property
+    def montant_restant(self):
+        reste = (self.total or Decimal("0")) - self.montant_paye
+        return reste if reste > 0 else Decimal("0")
 
     def __repr__(self):
         return f"<Facture #{self.id}>"
@@ -150,6 +174,29 @@ class DetailFacture(db.Model):
 
     def __repr__(self):
         return f"<DetailFacture facture={self.facture_id} produit={self.produit_id}>"
+
+
+# ===========================
+# PAIEMENT
+# ===========================
+class Paiement(db.Model):
+    __tablename__ = "paiements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    facture_id = db.Column(db.Integer, db.ForeignKey("factures.id"), nullable=False)
+    montant = db.Column(db.Numeric(10, 2), nullable=False)
+    methode = db.Column(db.String(20), nullable=False)
+    reference = db.Column(db.String(100), nullable=True)
+    date_paiement = db.Column(db.DateTime, server_default=db.func.now())
+
+    facture = db.relationship("Facture", back_populates="paiements")
+
+    @property
+    def methode_libelle(self):
+        return METHODES_PAIEMENT.get(self.methode, self.methode)
+
+    def __repr__(self):
+        return f"<Paiement {self.montant} DH ({self.methode}) facture={self.facture_id}>"
 
 
 # ===========================

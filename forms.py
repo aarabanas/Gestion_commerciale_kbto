@@ -22,7 +22,7 @@ from wtforms.validators import (
     Email,
 )
 
-from models import STATUTS_FACTURE
+from models import METHODES_PAIEMENT, STATUTS_FACTURE
 
 
 # =====================================
@@ -313,6 +313,31 @@ class StatutFactureForm(FlaskForm):
     )
 
     envoyer = SubmitField("Mettre à jour")
+
+
+# =====================================
+# Formulaire Paiement (enregistrement d'un reglement chèque/carte/espèces)
+# =====================================
+class PaiementForm(FlaskForm):
+
+    montant = DecimalField(
+        "Montant réglé (DH)",
+        places=2,
+        validators=[DataRequired(message="Le montant est obligatoire.")],
+    )
+
+    methode = SelectField(
+        "Moyen de paiement",
+        choices=list(METHODES_PAIEMENT.items()),
+        validators=[DataRequired()],
+    )
+
+    reference = StringField(
+        "Référence (n° de chèque, reçu...)",
+        validators=[Optional(), Length(max=100)],
+    )
+
+    envoyer = SubmitField("Enregistrer le paiement")
 
 
 # =====================================

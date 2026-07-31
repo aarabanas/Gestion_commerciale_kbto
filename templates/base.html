@@ -33,14 +33,15 @@
 
             {# Pour ton vrai logo, remplace la ligne <div class="logo-circle">KB</div> par :
                <img src="{{ url_for('static', filename='logo.png') }}" alt="KBTO"
-                    style="width:46px;height:46px;border-radius:50%;object-fit:cover;margin-bottom:10px;"> #}
+                    style="width:42px;height:42px;border-radius:50%;object-fit:cover;"> #}
             <div class="logo-circle">
                 KB
             </div>
 
-            <h2>KBTO</h2>
-
-            <p>Conseiller fiscal</p>
+            <div>
+                <h2>KBTO</h2>
+                <p>Cabinet comptable</p>
+            </div>
 
         </div>
 
@@ -99,6 +100,12 @@
 
         </ul>
 
+        <div class="sidebar-footer">
+            <strong>KBTO</strong> — Cabinet comptable agréé<br>
+            Hay Riad, Rabat, Maroc<br>
+            v1.2.0 &bull; &copy; {{ current_year }} KBTO
+        </div>
+
     </aside>
 
     <!-- ========================= -->
@@ -111,11 +118,11 @@
 
         <header class="topbar">
 
-            <div style="display:flex; align-items:center; gap:28px; flex:1; min-width:0;">
+            <div class="topbar-left">
 
-                <div style="flex-shrink:0;">
-                    <h1>Bonjour {{ current_user.prenom }} 👋</h1>
-                    <small>Bienvenue dans votre espace de gestion.</small>
+                <div class="topbar-title">
+                    <h1>{% block titre_page %}Tableau de bord{% endblock %}</h1>
+                    {% block sous_titre_page %}{% endblock %}
                 </div>
 
                 <form method="GET" action="{{ url_for('recherche') }}" class="topbar-search">
@@ -125,26 +132,11 @@
 
             </div>
 
-            <div style="display:flex; align-items:center; gap:16px;">
+            <div class="topbar-right">
 
                 {% include "_notifications.html" %}
 
-                <form method="POST"
-                      action="{{ url_for('deconnexion') }}">
-
-                    <input type="hidden"
-                           name="csrf_token"
-                           value="{{ csrf_token() }}">
-
-                    <button class="logout-btn">
-
-                        <i class="fa-solid fa-right-from-bracket"></i>
-
-                        Déconnexion
-
-                    </button>
-
-                </form>
+                {% include "_menu_profil.html" %}
 
             </div>
 

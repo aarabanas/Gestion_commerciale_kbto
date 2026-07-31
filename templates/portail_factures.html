@@ -1,13 +1,8 @@
 {% extends "portail_base.html" %}
 
-{% block contenu %}
+{% block titre_page %}Mes factures{% endblock %}
 
-<div class="page-header">
-    <div>
-        <h1>🧾 Mes factures</h1>
-        <p>Consultez, téléchargez ou imprimez vos factures.</p>
-    </div>
-</div>
+{% block contenu %}
 
 <div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));">
 
@@ -30,12 +25,15 @@
 </div>
 
 <div class="section">
+    <div class="section-header">
+        <h2>Historique des factures</h2>
+    </div>
     <table class="table">
         <thead>
             <tr>
-                <th>N°</th>
-                <th>Date</th>
-                <th>Total</th>
+                <th>Numéro</th>
+                <th>Date d'émission</th>
+                <th>Montant</th>
                 <th>Statut</th>
                 <th>Actions</th>
             </tr>
@@ -43,7 +41,7 @@
         <tbody>
         {% for facture in factures %}
             <tr>
-                <td>{{ facture.numero }}</td>
+                <td><a href="{{ url_for('portail_detail_facture', id=facture.id) }}" style="color:var(--accent-dark); font-weight:600;">{{ facture.numero }}</a></td>
                 <td>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</td>
                 <td>{{ "%.2f"|format(facture.total or 0) }} DH</td>
                 <td>
@@ -54,8 +52,10 @@
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('portail_detail_facture', id=facture.id) }}" class="btn btn-info">Voir</a>
-                    <a href="{{ url_for('portail_facture_pdf', id=facture.id) }}" class="btn btn-secondary">PDF</a>
+                    <div class="icon-actions">
+                        <a href="{{ url_for('portail_facture_pdf', id=facture.id) }}" class="icon-btn" title="Télécharger le PDF"><i class="fa-solid fa-download"></i></a>
+                        <a href="{{ url_for('portail_facture_imprimer', id=facture.id) }}" class="icon-btn" target="_blank" title="Imprimer"><i class="fa-solid fa-print"></i></a>
+                    </div>
                 </td>
             </tr>
         {% else %}

@@ -1,53 +1,63 @@
 {% extends "portail_base.html" %}
 
+{% block titre_page %}Mon profil{% endblock %}
+
 {% block contenu %}
 
-<div class="page-header">
-    <div>
-        <h1>👤 Mon profil</h1>
-        <p>Modifiez vos informations personnelles et votre mot de passe.</p>
-    </div>
-</div>
+<form method="POST" action="{{ url_for('portail_profil') }}" novalidate>
+    {{ form.hidden_tag() }}
 
-<div class="section">
-    <form method="POST" action="{{ url_for('portail_profil') }}" novalidate>
-        {{ form.hidden_tag() }}
+    <div class="two-col-layout">
 
-        <div class="form-grid">
-            <div class="form-group">
-                {{ form.nom.label }}
-                {{ form.nom(class="form-control") }}
-                {% for e in form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        <div class="section" style="margin-bottom:0;">
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:22px;">
+                <div class="avatar-cercle" style="width:56px; height:56px; font-size:19px;">{{ (current_user.prenom[0] ~ current_user.nom[0])|upper }}</div>
+                <div>
+                    <h2 style="font-size:17px;">{{ current_user.prenom }} {{ current_user.nom }}</h2>
+                    <span class="secondaire" style="color:var(--muted); font-size:12.5px;">Espace client KBTO</span>
+                </div>
             </div>
 
-            <div class="form-group">
-                {{ form.prenom.label }}
-                {{ form.prenom(class="form-control") }}
-                {% for e in form.prenom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            <div class="titre" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:14px;">
+                Coordonnées
             </div>
 
-            <div class="form-group">
-                {{ form.email.label }}
-                {{ form.email(class="form-control") }}
-                {% for e in form.email.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
-            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    {{ form.nom.label }}
+                    {{ form.nom(class="form-control") }}
+                    {% for e in form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+                </div>
 
-            <div class="form-group">
-                {{ form.telephone.label }}
-                {{ form.telephone(class="form-control") }}
-            </div>
+                <div class="form-group">
+                    {{ form.prenom.label }}
+                    {{ form.prenom(class="form-control") }}
+                    {% for e in form.prenom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+                </div>
 
-            <div class="form-group">
-                {{ form.adresse.label }}
-                {{ form.adresse(class="form-control") }}
+                <div class="form-group">
+                    {{ form.email.label }}
+                    {{ form.email(class="form-control") }}
+                    {% for e in form.email.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+                </div>
+
+                <div class="form-group">
+                    {{ form.telephone.label }}
+                    {{ form.telephone(class="form-control") }}
+                </div>
+
+                <div class="form-group" style="grid-column:1 / -1;">
+                    {{ form.adresse.label }}
+                    {{ form.adresse(class="form-control") }}
+                </div>
             </div>
         </div>
 
-        <div class="section-header" style="margin-top:8px">
-            <h2 style="font-size:14px;">Changer le mot de passe (facultatif)</h2>
-        </div>
+        <div class="section" style="margin-bottom:0;">
+            <div class="section-header">
+                <h2>Modifier mon mot de passe</h2>
+            </div>
 
-        <div class="form-grid">
             <div class="form-group">
                 {{ form.mot_de_passe_actuel.label }}
                 {{ form.mot_de_passe_actuel(class="form-control") }}
@@ -65,15 +75,17 @@
                 {{ form.confirmer_nouveau_mot_de_passe(class="form-control") }}
                 {% for e in form.confirmer_nouveau_mot_de_passe.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
             </div>
+
+            <div class="form-actions">
+                {{ form.envoyer(class="btn btn-primary", value="Mettre à jour") }}
+            </div>
         </div>
 
-        <div class="form-actions">
-            {{ form.envoyer(class="btn btn-success") }}
-        </div>
-    </form>
-</div>
+    </div>
 
-<div class="section">
+</form>
+
+<div class="section" style="margin-top:28px;">
     <div class="section-header">
         <h2>Se déconnecter</h2>
     </div>

@@ -21,20 +21,36 @@ Crée un fichier `.env` à la racine (jamais commité, voir `.gitignore`) :
 SECRET_KEY=change-moi-en-production
 DATABASE_URL=sqlite:///gestion_commerciale.db
 
+# Mode debug local (recharge auto + traces d'erreur detaillees). Ne jamais
+# mettre a 1 si l'app est un jour exposee publiquement.
+FLASK_DEBUG=1
+
+# A positionner sur "production" lors d'un vrai deploiement : force le cookie
+# de session en HTTPS uniquement et refuse de demarrer si SECRET_KEY est
+# resteee a sa valeur par defaut.
+FLASK_ENV=
+
 # Paiement en ligne (facultatif — sans ça, le bouton "Payer" affiche un message)
 STRIPE_SECRET_KEY=sk_test_...
 
-# Connexion Google (facultatif)
+# Connexion Google (facultatif) — callback à enregistrer :
+# http://127.0.0.1:5000/connexion/google/callback
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 
-# Connexion GitHub (facultatif)
+# Connexion GitHub (facultatif) — callback à enregistrer :
+# http://127.0.0.1:5000/connexion/github/callback
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
 ```
 
 Sans les clés Stripe/OAuth, l'application fonctionne normalement ; seuls le
 paiement en ligne et la connexion sociale affichent un message indisponible.
+
+Le portail client dispose aussi d'un assistant (bulle de discussion en bas
+à droite) qui répond aux questions générales (tarifs, prestations, paiement,
+contact...) à partir de mots-clés — aucune clé ni configuration requise,
+fonctionne gratuitement dès l'installation.
 
 ## Base de données
 

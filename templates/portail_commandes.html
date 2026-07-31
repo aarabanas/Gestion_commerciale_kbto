@@ -1,18 +1,21 @@
 {% extends "portail_base.html" %}
 
+{% block titre_page %}Mes commandes{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>🛒 Mes commandes</h1>
-        <p>Historique et suivi de vos commandes.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('portail_ajouter_commande') }}" class="btn btn-primary">
         <i class="fa-solid fa-plus"></i> Nouvelle commande
     </a>
 </div>
 
 <div class="section">
+
+    <div class="section-header">
+        <h2>Liste des commandes</h2>
+    </div>
 
     <table class="table">
         <thead>

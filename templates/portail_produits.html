@@ -1,60 +1,81 @@
 {% extends "portail_base.html" %}
 
+{% block titre_page %}Catalogue{% endblock %}
+
 {% block contenu %}
 
-<div class="page-header">
-    <div>
-        <h1>📦 Catalogue produits</h1>
-        <p>Consultez les prix et la disponibilité en stock.</p>
+<form method="GET" class="search-box">
+    <input
+        type="text"
+        class="form-control"
+        name="recherche"
+        placeholder="Rechercher un service..."
+        value="{{ recherche }}"
+    >
+    <button type="submit" class="btn btn-primary">Rechercher</button>
+</form>
+
+{% set categories = [] %}
+{% for p in produits %}
+    {% if p.categorie and p.categorie not in categories %}
+        {% set _ = categories.append(p.categorie) %}
+    {% endif %}
+{% endfor %}
+
+<div class="pill-tabs" id="pills-categorie">
+    <button type="button" class="pill-tab actif" data-cat="tous">Tous</button>
+    {% for cat in categories %}
+    <button type="button" class="pill-tab" data-cat="{{ cat }}">{{ cat }}</button>
+    {% endfor %}
+</div>
+
+{% if produits %}
+<div class="produits-grid" id="grille-produits">
+    {% for produit in produits %}
+    <div class="produit-card" data-categorie="{{ produit.categorie or '' }}">
+        <div class="entete-carte">
+            <span class="badge neutre">{{ produit.categorie or "Autre" }}</span>
+            {% if produit.quantite == 0 %}
+                <span class="badge annulee">Rupture</span>
+            {% elif produit.quantite <= 5 %}
+                <span class="badge attente">Stock faible</span>
+            {% else %}
+                <span class="badge payee">Disponible</span>
+            {% endif %}
+        </div>
+        <h3>{{ produit.nom }}</h3>
+        <p class="description">{{ produit.description or "Aucune description." }}</p>
+        <div class="pied-carte">
+            <div class="prix">
+                <small>Tarif HT</small>
+                <strong>{{ "%.2f"|format(produit.prix) }} DH</strong>
+            </div>
+            <a href="{{ url_for('portail_ajouter_commande') }}" class="btn btn-success btn-sm">
+                <i class="fa-solid fa-cart-plus"></i> Commander
+            </a>
+        </div>
     </div>
+    {% endfor %}
 </div>
+{% else %}
+<div class="section"><p class="empty">Aucun produit trouvé.</p></div>
+{% endif %}
 
-<div class="section">
-
-    <form method="GET" class="search-box">
-        <input
-            type="text"
-            class="form-control"
-            name="recherche"
-            placeholder="Rechercher un produit..."
-            value="{{ recherche }}"
-        >
-        <button type="submit" class="btn btn-primary">Rechercher</button>
-    </form>
-
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Produit</th>
-                <th>Catégorie</th>
-                <th>Prix</th>
-                <th>Disponibilité</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for produit in produits %}
-            <tr>
-                <td>{{ produit.nom }}</td>
-                <td>{{ produit.categorie or "—" }}</td>
-                <td>{{ "%.2f"|format(produit.prix) }} DH</td>
-                <td>
-                    {% if produit.quantite == 0 %}
-                        <span class="badge annulee">Rupture de stock</span>
-                    {% elif produit.quantite <= 5 %}
-                        <span class="badge attente">Stock faible ({{ produit.quantite }})</span>
-                    {% else %}
-                        <span class="badge payee">En stock</span>
-                    {% endif %}
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="4" class="empty">Aucun produit trouvé.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-
-</div>
+<script>
+    (function () {
+        var pills = document.querySelectorAll('#pills-categorie .pill-tab');
+        var cartes = document.querySelectorAll('#grille-produits .produit-card');
+        pills.forEach(function (pill) {
+            pill.addEventListener('click', function () {
+                pills.forEach(function (p) { p.classList.remove('actif'); });
+                pill.classList.add('actif');
+                var cat = pill.getAttribute('data-cat');
+                cartes.forEach(function (carte) {
+                    carte.style.display = (cat === 'tous' || carte.getAttribute('data-categorie') === cat) ? '' : 'none';
+                });
+            });
+        });
+    })();
+</script>
 
 {% endblock %}

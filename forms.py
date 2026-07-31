@@ -12,17 +12,33 @@ from wtforms import (
     IntegerField,
     TextAreaField,
     SelectField,
+    RadioField,
 )
 
 from wtforms.validators import (
     DataRequired,
     EqualTo,
+    InputRequired,
     Length,
+    NumberRange,
     Optional,
     Email,
 )
 
 from models import METHODES_PAIEMENT, STATUTS_FACTURE
+
+# Politique de mot de passe et d'identifiant : centralisees ici car reprises
+# a la fois par plusieurs formulaires (inscription, comptes personnel/client,
+# changement de mot de passe) et par la commande CLI `creer-admin` (app.py).
+LONGUEUR_MIN_MOT_DE_PASSE = 8
+LONGUEUR_MIN_NOM_UTILISATEUR = 3
+LONGUEUR_MAX_NOM_UTILISATEUR = 80
+# L'identifiant de connexion accepte aussi un email de client (plus long
+# qu'un simple nom d'utilisateur) -> une borne max plus large que ci-dessus.
+LONGUEUR_MAX_IDENTIFIANT_CONNEXION = 150
+# Montant minimum accepte pour un reglement (strictement positif : un
+# paiement de 0 DH n'a pas de sens metier).
+MONTANT_MINIMUM_PAIEMENT = 0.01
 
 
 # =====================================
@@ -34,7 +50,11 @@ class ConnexionForm(FlaskForm):
         "Identifiant (nom d'utilisateur ou email)",
         validators=[
             DataRequired(message="L'identifiant est obligatoire."),
-            Length(min=3, max=150, message="L'identifiant doit contenir entre 3 et 150 caractères."),
+            Length(
+                min=LONGUEUR_MIN_NOM_UTILISATEUR,
+                max=LONGUEUR_MAX_IDENTIFIANT_CONNEXION,
+                message="L'identifiant doit contenir entre 3 et 150 caractères.",
+            ),
         ],
     )
 
@@ -42,7 +62,7 @@ class ConnexionForm(FlaskForm):
         "Mot de passe",
         validators=[
             DataRequired(message="Le mot de passe est obligatoire."),
-            Length(min=8, message="Le mot de passe doit contenir au moins 8 caractères."),
+            Length(min=LONGUEUR_MIN_MOT_DE_PASSE, message="Le mot de passe doit contenir au moins 8 caractères."),
         ],
     )
 
@@ -73,7 +93,7 @@ class InscriptionClientForm(FlaskForm):
         "Mot de passe",
         validators=[
             DataRequired(message="Le mot de passe est obligatoire."),
-            Length(min=8, message="Le mot de passe doit contenir au moins 8 caractères."),
+            Length(min=LONGUEUR_MIN_MOT_DE_PASSE, message="Le mot de passe doit contenir au moins 8 caractères."),
         ],
     )
 
@@ -128,9 +148,24 @@ class ProduitForm(FlaskForm):
         validators=[DataRequired()],
     )
 
-    prix = DecimalField("Prix", places=2, validators=[DataRequired()])
+    # InputRequired (et non DataRequired) : DataRequired traite 0 comme une
+    # valeur "manquante" (verifie la troncite de field.data), ce qui rejetait
+    # a tort un prix ou un stock legitimement a 0 (prestation offerte,
+    # rupture de stock a la creation). InputRequired verifie seulement qu'une
+    # valeur a bien ete soumise, et laisse NumberRange juger de sa validite.
+    prix = DecimalField(
+        "Prix",
+        places=2,
+        validators=[InputRequired(), NumberRange(min=0, message="Le prix ne peut pas être négatif.")],
+    )
 
-    quantite = IntegerField("Quantité", validators=[DataRequired()])
+    quantite = IntegerField(
+        "Quantité",
+        validators=[
+            InputRequired(),
+            NumberRange(min=0, message="La quantité en stock ne peut pas être négative."),
+        ],
+    )
 
     description = TextAreaField("Description", validators=[Optional()])
 
@@ -181,7 +216,7 @@ class FactureForm(FlaskForm):
 # =====================================
 class CommandeClientForm(FlaskForm):
 
-    mode_paiement = SelectField(
+    mode_paiement = RadioField(
         "Mode de paiement souhaité",
         choices=[
             ("cheque", "Chèque"),
@@ -224,7 +259,11 @@ class UtilisateurForm(FlaskForm):
         "Nom d'utilisateur",
         validators=[
             DataRequired(message="Le nom d'utilisateur est obligatoire."),
-            Length(min=3, max=80, message="Le nom d'utilisateur doit contenir entre 3 et 80 caractères."),
+            Length(
+                min=LONGUEUR_MIN_NOM_UTILISATEUR,
+                max=LONGUEUR_MAX_NOM_UTILISATEUR,
+                message="Le nom d'utilisateur doit contenir entre 3 et 80 caractères.",
+            ),
         ],
     )
 
@@ -249,7 +288,7 @@ class UtilisateurForm(FlaskForm):
         "Mot de passe",
         validators=[
             DataRequired(message="Le mot de passe est obligatoire."),
-            Length(min=8, message="Le mot de passe doit contenir au moins 8 caractères."),
+            Length(min=LONGUEUR_MIN_MOT_DE_PASSE, message="Le mot de passe doit contenir au moins 8 caractères."),
         ],
     )
 
@@ -273,7 +312,11 @@ class ModifierUtilisateurForm(FlaskForm):
         "Nom d'utilisateur",
         validators=[
             DataRequired(message="Le nom d'utilisateur est obligatoire."),
-            Length(min=3, max=80, message="Le nom d'utilisateur doit contenir entre 3 et 80 caractères."),
+            Length(
+                min=LONGUEUR_MIN_NOM_UTILISATEUR,
+                max=LONGUEUR_MAX_NOM_UTILISATEUR,
+                message="Le nom d'utilisateur doit contenir entre 3 et 80 caractères.",
+            ),
         ],
     )
 
@@ -296,7 +339,7 @@ class ModifierUtilisateurForm(FlaskForm):
 
     nouveau_mot_de_passe = PasswordField(
         "Nouveau mot de passe (laisser vide pour ne pas changer)",
-        validators=[Optional(), Length(min=8, message="Le mot de passe doit contenir au moins 8 caractères.")],
+        validators=[Optional(), Length(min=LONGUEUR_MIN_MOT_DE_PASSE, message="Le mot de passe doit contenir au moins 8 caractères.")],
     )
 
     confirmer_nouveau_mot_de_passe = PasswordField(
@@ -330,10 +373,16 @@ class StatutFactureForm(FlaskForm):
 # =====================================
 class PaiementForm(FlaskForm):
 
+    # InputRequired : idem ProduitForm, pour que le message affiche en cas de
+    # 0 soit bien "doit etre positif" (NumberRange) et non "est obligatoire"
+    # (DataRequired traiterait 0 comme absent avant meme d'atteindre NumberRange).
     montant = DecimalField(
         "Montant réglé (DH)",
         places=2,
-        validators=[DataRequired(message="Le montant est obligatoire.")],
+        validators=[
+            InputRequired(message="Le montant est obligatoire."),
+            NumberRange(min=MONTANT_MINIMUM_PAIEMENT, message="Le montant réglé doit être positif."),
+        ],
     )
 
     methode = SelectField(
@@ -372,7 +421,7 @@ class ProfilClientForm(FlaskForm):
 
     nouveau_mot_de_passe = PasswordField(
         "Nouveau mot de passe (laisser vide pour ne pas changer)",
-        validators=[Optional(), Length(min=8, message="Le mot de passe doit contenir au moins 8 caractères.")],
+        validators=[Optional(), Length(min=LONGUEUR_MIN_MOT_DE_PASSE, message="Le mot de passe doit contenir au moins 8 caractères.")],
     )
 
     confirmer_nouveau_mot_de_passe = PasswordField(
@@ -392,7 +441,11 @@ class ProfilForm(FlaskForm):
         "Nom d'utilisateur",
         validators=[
             DataRequired(message="Le nom d'utilisateur est obligatoire."),
-            Length(min=3, max=80, message="Le nom d'utilisateur doit contenir entre 3 et 80 caractères."),
+            Length(
+                min=LONGUEUR_MIN_NOM_UTILISATEUR,
+                max=LONGUEUR_MAX_NOM_UTILISATEUR,
+                message="Le nom d'utilisateur doit contenir entre 3 et 80 caractères.",
+            ),
         ],
     )
 
@@ -414,7 +467,7 @@ class ProfilForm(FlaskForm):
 
     nouveau_mot_de_passe = PasswordField(
         "Nouveau mot de passe (laisser vide pour ne pas changer)",
-        validators=[Optional(), Length(min=8, message="Le mot de passe doit contenir au moins 8 caractères.")],
+        validators=[Optional(), Length(min=LONGUEUR_MIN_MOT_DE_PASSE, message="Le mot de passe doit contenir au moins 8 caractères.")],
     )
 
     confirmer_nouveau_mot_de_passe = PasswordField(

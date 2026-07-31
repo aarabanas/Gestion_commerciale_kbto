@@ -1,59 +1,65 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Mon profil{% endblock %}
+
 {% block contenu %}
 
-<div class="page-header">
-    <div>
-        <h1>👤 Mon profil</h1>
-        <p>Gérez vos informations de compte.</p>
-    </div>
-</div>
+<form method="POST" action="{{ url_for('profil') }}" novalidate>
+    {{ compte_form.hidden_tag() }}
 
-<div class="section">
+    <div class="two-col-layout">
 
-    <div class="section-header">
-        <h2>Mon compte</h2>
-    </div>
+        <div class="section" style="margin-bottom:0;">
+            <div style="display:flex; align-items:center; gap:16px; margin-bottom:22px;">
+                <div class="avatar-cercle" style="width:56px; height:56px; font-size:19px;">{{ (current_user.prenom[0] ~ current_user.nom[0])|upper }}</div>
+                <div>
+                    <h2 style="font-size:17px;">{{ current_user.prenom }} {{ current_user.nom }}</h2>
+                    <span class="badge {{ 'role-admin' if current_user.role == 'administrateur' else 'role-employe' }}">
+                        {{ "Administrateur" if current_user.role == 'administrateur' else "Collaborateur" }}
+                    </span>
+                </div>
+            </div>
 
-    <form method="POST" action="{{ url_for('profil') }}" novalidate>
-        {{ compte_form.hidden_tag() }}
+            <div class="form-group">
+                {{ compte_form.nom_utilisateur.label }}
+                {{ compte_form.nom_utilisateur(class="form-control") }}
+                {% for e in compte_form.nom_utilisateur.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            </div>
 
-        <div class="form-group">
-            {{ compte_form.nom_utilisateur.label }}
-            {{ compte_form.nom_utilisateur(class="form-control") }}
-            {% for e in compte_form.nom_utilisateur.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+            <div class="form-grid">
+                <div class="form-group">
+                    {{ compte_form.nom.label }}
+                    {{ compte_form.nom(class="form-control") }}
+                    {% for e in compte_form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+                </div>
+
+                <div class="form-group">
+                    {{ compte_form.prenom.label }}
+                    {{ compte_form.prenom(class="form-control") }}
+                    {% for e in compte_form.prenom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+                </div>
+
+                <div class="form-group">
+                    {{ compte_form.email.label }}
+                    {{ compte_form.email(class="form-control") }}
+                    {% for e in compte_form.email.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+                </div>
+
+                <div class="form-group">
+                    {{ compte_form.telephone.label }}
+                    {{ compte_form.telephone(class="form-control") }}
+                </div>
+            </div>
         </div>
 
-        <div class="form-grid">
-            <div class="form-group">
-                {{ compte_form.nom.label }}
-                {{ compte_form.nom(class="form-control") }}
-                {% for e in compte_form.nom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+        <div class="section" style="margin-bottom:0;">
+            <div class="section-header">
+                <h2>Sécurité du compte</h2>
             </div>
+            <p style="color:var(--muted); font-size:12.5px; margin-top:-10px; margin-bottom:18px;">
+                Mettez à jour vos identifiants pour garantir la confidentialité des données de vos clients.
+            </p>
 
-            <div class="form-group">
-                {{ compte_form.prenom.label }}
-                {{ compte_form.prenom(class="form-control") }}
-                {% for e in compte_form.prenom.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
-            </div>
-
-            <div class="form-group">
-                {{ compte_form.email.label }}
-                {{ compte_form.email(class="form-control") }}
-                {% for e in compte_form.email.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
-            </div>
-
-            <div class="form-group">
-                {{ compte_form.telephone.label }}
-                {{ compte_form.telephone(class="form-control") }}
-            </div>
-        </div>
-
-        <div class="section-header" style="margin-top:8px">
-            <h2 style="font-size:14px;">Changer le mot de passe (facultatif)</h2>
-        </div>
-
-        <div class="form-grid">
             <div class="form-group">
                 {{ compte_form.mot_de_passe_actuel.label }}
                 {{ compte_form.mot_de_passe_actuel(class="form-control") }}
@@ -71,13 +77,14 @@
                 {{ compte_form.confirmer_nouveau_mot_de_passe(class="form-control") }}
                 {% for e in compte_form.confirmer_nouveau_mot_de_passe.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
             </div>
+
+            <div class="form-actions">
+                {{ compte_form.envoyer(class="btn btn-primary", value="Mettre à jour") }}
+            </div>
         </div>
 
-        <div class="form-actions">
-            {{ compte_form.envoyer(class="btn btn-success") }}
-        </div>
-    </form>
+    </div>
 
-</div>
+</form>
 
 {% endblock %}

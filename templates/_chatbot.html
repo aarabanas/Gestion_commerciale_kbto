@@ -1,0 +1,80 @@
+<button type="button" class="chatbot-bulle" id="chatbot-bulle" onclick="basculerChatbot()" aria-label="Ouvrir l'assistant">
+    <i class="fa-solid fa-comment-dots"></i>
+</button>
+
+<div class="chatbot-panneau" id="chatbot-panneau">
+    <div class="chatbot-entete">
+        <div>
+            <strong>Assistant KBTO</strong>
+            <small>Questions générales sur le cabinet</small>
+        </div>
+        <button type="button" class="chatbot-fermer" onclick="basculerChatbot()" aria-label="Fermer">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <div class="chatbot-messages" id="chatbot-messages">
+        <div class="chatbot-message assistant">Bonjour ! Je peux répondre à vos questions générales sur nos prestations, nos tarifs, ou l'utilisation de votre espace client. Pour toute question sur votre dossier personnel (factures, paiements), consultez les onglets dédiés ou contactez votre comptable.</div>
+    </div>
+
+    <form class="chatbot-saisie" id="chatbot-formulaire" onsubmit="return envoyerMessageChatbot(event)">
+        <input type="text" id="chatbot-saisie-texte" placeholder="Votre question..." maxlength="500" autocomplete="off">
+        <button type="submit" aria-label="Envoyer"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+</div>
+
+<script>
+    function basculerChatbot() {
+        document.getElementById('chatbot-panneau').classList.toggle('ouvert');
+    }
+
+    function ajouterMessageChatbot(texte, classe) {
+        var zone = document.getElementById('chatbot-messages');
+        var element = document.createElement('div');
+        element.className = 'chatbot-message ' + classe;
+        element.textContent = texte;
+        zone.appendChild(element);
+        zone.scrollTop = zone.scrollHeight;
+        return element;
+    }
+
+    function envoyerMessageChatbot(evenement) {
+        evenement.preventDefault();
+
+        var champ = document.getElementById('chatbot-saisie-texte');
+        var message = champ.value.trim();
+        if (!message) { return false; }
+
+        ajouterMessageChatbot(message, 'client');
+        champ.value = '';
+
+        var bouton = document.querySelector('#chatbot-formulaire button');
+        bouton.disabled = true;
+        var messageChargement = ajouterMessageChatbot('...', 'chargement');
+
+        var jeton = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch('{{ url_for("portail_assistant_message") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': jeton
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(function (reponse) { return reponse.json(); })
+        .then(function (donnees) {
+            messageChargement.remove();
+            ajouterMessageChatbot(donnees.reponse || "Une erreur est survenue.", 'assistant');
+        })
+        .catch(function () {
+            messageChargement.remove();
+            ajouterMessageChatbot("Impossible de contacter l'assistant pour le moment.", 'assistant');
+        })
+        .finally(function () {
+            bouton.disabled = false;
+        });
+
+        return false;
+    }
+</script>

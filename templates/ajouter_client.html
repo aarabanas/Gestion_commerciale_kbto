@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Nouveau client{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>➕ Nouveau client</h1>
-        <p>Ajoutez un client à votre portefeuille.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('liste_clients') }}" class="btn btn-secondary">
         <i class="fa-solid fa-arrow-left"></i> Retour
     </a>

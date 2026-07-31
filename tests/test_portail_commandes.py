@@ -61,11 +61,29 @@ def test_commande_par_carte_refusee_message_professionnel(connecte_client, clien
         follow_redirects=True,
     )
     assert reponse.status_code == 200
-    assert "n'est pas encore disponible" in reponse.get_data(as_text=True)
+    assert "pas encore disponible" in reponse.get_data(as_text=True)
     assert Facture.query.filter_by(client_id=client_avec_compte.id).count() == 0
 
     produit = db.session.get(Produit, un_produit.id)
     assert produit.quantite == 10  # stock inchange, aucune ligne creee
+
+
+def test_commande_mode_paiement_hors_choix_valides_refusee(connecte_client, client_avec_compte, un_produit):
+    # Un attaquant qui contourne le RadioField cote client et poste une
+    # valeur hors choix ("virement") ne doit pas pouvoir creer de commande :
+    # la validation WTForms sur les `choices` doit invalider tout le
+    # formulaire (comportement different du cas "carte", gere explicitement
+    # cote serveur, mais tout aussi bloquant).
+    reponse = connecte_client.post(
+        "/portail/commandes/ajouter",
+        data=_donnees_commande(un_produit.id, 1, mode_paiement="virement"),
+        follow_redirects=True,
+    )
+    assert reponse.status_code == 200
+    assert Facture.query.filter_by(client_id=client_avec_compte.id).count() == 0
+
+    produit = db.session.get(Produit, un_produit.id)
+    assert produit.quantite == 10  # stock inchange
 
 
 def test_notification_admin_pour_commande_cheque_espece(connecte, client_avec_compte):

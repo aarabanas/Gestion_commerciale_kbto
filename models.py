@@ -207,6 +207,14 @@ class Paiement(db.Model):
 # ===========================
 # PARAMETRES DE L'ENTREPRISE
 # ===========================
+# Taux de TVA standard au Maroc, utilise tant que l'administrateur n'a pas
+# defini de valeur specifique.
+TAUX_TVA_DEFAUT = 20.0
+# Objectif de chiffre d'affaires mensuel par defaut (affiche sur le tableau
+# de bord tant qu'aucun objectif reel n'a ete configure).
+OBJECTIF_CA_MENSUEL_DEFAUT = Decimal("50000")
+
+
 class Parametres(db.Model):
     __tablename__ = "parametres"
 
@@ -216,16 +224,20 @@ class Parametres(db.Model):
     adresse = db.Column(db.String(255))
     telephone = db.Column(db.String(30))
     email = db.Column(db.String(150))
-    taux_tva = db.Column(db.Float, default=20.0)
+    taux_tva = db.Column(db.Float, default=TAUX_TVA_DEFAUT)
     logo = db.Column(db.String(255))
-    objectif_ca_mensuel = db.Column(db.Numeric(10, 2), default=Decimal("50000"))
+    objectif_ca_mensuel = db.Column(db.Numeric(10, 2), default=OBJECTIF_CA_MENSUEL_DEFAUT)
 
     @staticmethod
     def obtenir():
         """Renvoie l'unique ligne de parametres, en la creant si besoin."""
         p = Parametres.query.first()
         if p is None:
-            p = Parametres(nom_entreprise="KBTO", taux_tva=20.0, objectif_ca_mensuel=Decimal("50000"))
+            p = Parametres(
+                nom_entreprise="KBTO",
+                taux_tva=TAUX_TVA_DEFAUT,
+                objectif_ca_mensuel=OBJECTIF_CA_MENSUEL_DEFAUT,
+            )
             db.session.add(p)
             db.session.commit()
         return p

@@ -1,20 +1,17 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Rapports d'activité{% endblock %}
+
 {% block contenu %}
 
-<div class="page-header">
-    <div>
-        <h1>📈 Rapports</h1>
-        <p>Chiffre d'affaires facturé, montants payés et répartition par mois.</p>
-    </div>
-</div>
+{% set taux_recouvrement = (total_paye / chiffre_affaires_total * 100) if chiffre_affaires_total else 0 %}
 
 <div class="dashboard-grid" style="grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));">
 
     <div class="card blue">
         <div class="card-icon"><i class="fa-solid fa-file-invoice"></i></div>
         <div class="card-content">
-            <h4>Total facturé</h4>
+            <h4>Total facturé annuel</h4>
             <h1>{{ "%.2f"|format(chiffre_affaires_total) }} DH</h1>
         </div>
     </div>
@@ -22,16 +19,16 @@
     <div class="card green">
         <div class="card-icon"><i class="fa-solid fa-circle-check"></i></div>
         <div class="card-content">
-            <h4>Total payé</h4>
+            <h4>Total encaissé</h4>
             <h1>{{ "%.2f"|format(total_paye) }} DH</h1>
         </div>
     </div>
 
     <div class="card purple">
-        <div class="card-icon"><i class="fa-solid fa-hashtag"></i></div>
+        <div class="card-icon"><i class="fa-solid fa-percent"></i></div>
         <div class="card-content">
-            <h4>Factures émises</h4>
-            <h1>{{ nb_factures }}</h1>
+            <h4>Taux de recouvrement</h4>
+            <h1>{{ "%.1f"|format(taux_recouvrement) }}%</h1>
         </div>
     </div>
 
@@ -66,6 +63,46 @@
     {% endif %}
 
 </div>
+
+{% if barres %}
+<div class="section">
+    <div class="section-header">
+        <h2>Historique des recouvrements par mois</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Mois comptable</th>
+                <th>Total facturé HT</th>
+                <th>Total encaissé HT</th>
+                <th>Reste à recouvrer</th>
+                <th>Statut global</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for barre in barres|reverse %}
+            {% set reste = barre.facture - barre.payee %}
+            {% set taux = (barre.payee / barre.facture * 100) if barre.facture else 0 %}
+            <tr>
+                <td>{{ barre.label }}</td>
+                <td>{{ "%.2f"|format(barre.facture) }} DH</td>
+                <td>{{ "%.2f"|format(barre.payee) }} DH</td>
+                <td>{{ "%.2f"|format(reste) }} DH</td>
+                <td>
+                    {% if taux >= 90 %}
+                        <span class="badge payee">Excellent</span>
+                    {% elif taux >= 70 %}
+                        <span class="badge role-admin">Sain</span>
+                    {% else %}
+                        <span class="badge attente">Attention</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 
 <div class="section">
 

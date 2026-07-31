@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Nouvelle prestation{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>➕ Nouveau produit</h1>
-        <p>Ajoutez un produit à votre catalogue.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('liste_produits') }}" class="btn btn-secondary">
         <i class="fa-solid fa-arrow-left"></i> Retour
     </a>

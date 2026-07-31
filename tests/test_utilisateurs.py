@@ -87,3 +87,30 @@ def test_modification_role_refusee_pour_dernier_administrateur(connecte, utilisa
 def test_admin_peut_supprimer_un_employe(connecte, employe):
     connecte.post(f"/utilisateurs/supprimer/{employe.id}", follow_redirects=True)
     assert db.session.get(Utilisateur, employe.id) is None
+
+
+def test_employe_ne_peut_pas_modifier_un_utilisateur(connecte_employe, employe):
+    # Un employe ne doit pas pouvoir elever son propre role (ou celui d'un
+    # autre compte) vers administrateur en appelant directement la route de
+    # modification reservee a l'administrateur.
+    donnees = _donnees_utilisateur(
+        nom_utilisateur=employe.nom_utilisateur,
+        email=employe.email,
+        role="administrateur",
+    )
+    del donnees["mot_de_passe"]
+    del donnees["confirmer_mot_de_passe"]
+    donnees["nouveau_mot_de_passe"] = ""
+    donnees["confirmer_nouveau_mot_de_passe"] = ""
+
+    reponse = connecte_employe.post(f"/utilisateurs/modifier/{employe.id}", data=donnees)
+    assert reponse.status_code == 403
+
+    employe_actuel = db.session.get(Utilisateur, employe.id)
+    assert employe_actuel.role == "employe"
+
+
+def test_employe_ne_peut_pas_supprimer_un_utilisateur(connecte_employe, utilisateur):
+    reponse = connecte_employe.post(f"/utilisateurs/supprimer/{utilisateur.id}")
+    assert reponse.status_code == 403
+    assert db.session.get(Utilisateur, utilisateur.id) is not None

@@ -1,13 +1,9 @@
 {% extends "base.html" %}
 
-{% block contenu %}
+{% block titre_page %}Résultats de recherche{% endblock %}
+{% block sous_titre_page %}<small>{% if q %}Résultats pour « {{ q }} »{% else %}Saisissez un terme dans la barre de recherche.{% endif %}</small>{% endblock %}
 
-<div class="page-header">
-    <div>
-        <h1>🔎 Résultats de recherche</h1>
-        <p>{% if q %}Résultats pour « {{ q }} »{% else %}Saisissez un terme dans la barre de recherche.{% endif %}</p>
-    </div>
-</div>
+{% block contenu %}
 
 {% if q %}
 

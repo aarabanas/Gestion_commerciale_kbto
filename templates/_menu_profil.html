@@ -1,0 +1,42 @@
+{% if current_user.role == 'client' %}
+    {% set url_profil = url_for('portail_profil') %}
+    {% set libelle_role = "Espace client" %}
+{% else %}
+    {% set url_profil = url_for('profil') %}
+    {% set libelle_role = "Administrateur" if current_user.role == 'administrateur' else "Collaborateur" %}
+{% endif %}
+
+<div class="topbar-user-wrap">
+    <button type="button" class="topbar-user" onclick="basculerMenuProfil(event)">
+        <div class="infos">
+            <span class="salut">Bonjour, {{ current_user.prenom }}</span>
+            <span class="role">{{ libelle_role }}</span>
+        </div>
+        <div class="avatar-cercle">{{ (current_user.prenom[0] ~ current_user.nom[0])|upper }}</div>
+    </button>
+
+    <div class="topbar-user-menu" id="profil-menu" onclick="event.stopPropagation()">
+        <a href="{{ url_profil }}">
+            <i class="fa-solid fa-user-gear"></i> Mon profil
+        </a>
+        <hr>
+        <form method="POST" action="{{ url_for('deconnexion') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="deconnexion">
+                <i class="fa-solid fa-right-from-bracket"></i> Déconnexion
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function basculerMenuProfil(evenement) {
+        evenement.stopPropagation();
+        document.getElementById('profil-menu').classList.toggle('ouvert');
+    }
+
+    document.addEventListener('click', function () {
+        var menu = document.getElementById('profil-menu');
+        if (menu) { menu.classList.remove('ouvert'); }
+    });
+</script>

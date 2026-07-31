@@ -89,3 +89,48 @@ def test_methode_de_paiement_invalide_refusee(connecte, une_facture):
     )
     # methode hors choix valides -> formulaire invalide, aucun paiement cree
     assert Paiement.query.count() == 0
+
+
+def test_paiement_superieur_au_montant_restant_est_accepte_et_solde_la_facture(
+    connecte, une_facture, un_produit
+):
+    # Documente le comportement actuel (aucun plafond) : un reglement du
+    # personnel superieur au solde restant est accepte tel quel (utile pour
+    # des ajustements/arrondis geres manuellement) et fait passer la facture
+    # a "payee". Cote portail, ce risque n'existe pas : le montant envoye a
+    # Stripe est toujours calcule par le serveur (facture.montant_restant),
+    # jamais fourni par le client.
+    connecte.post(
+        f"/factures/{une_facture.id}",
+        data={"produit": un_produit.id, "quantite": 1},
+        follow_redirects=True,
+    )
+    facture = db.session.get(Facture, une_facture.id)
+    assert facture.total == Decimal("100.00")
+
+    connecte.post(
+        f"/factures/{facture.id}/paiements/ajouter",
+        data={"montant": "500.00", "methode": "espece", "reference": ""},
+        follow_redirects=True,
+    )
+
+    facture = db.session.get(Facture, une_facture.id)
+    assert facture.montant_paye == Decimal("500.00")
+    assert facture.statut == "payee"
+    assert facture.montant_restant == Decimal("0")
+
+
+def test_paiement_montant_zero_refuse(connecte, une_facture, un_produit):
+    connecte.post(
+        f"/factures/{une_facture.id}",
+        data={"produit": un_produit.id, "quantite": 1},
+        follow_redirects=True,
+    )
+    connecte.post(
+        f"/factures/{une_facture.id}/paiements/ajouter",
+        data={"montant": "0", "methode": "espece", "reference": ""},
+        follow_redirects=True,
+    )
+    facture = db.session.get(Facture, une_facture.id)
+    assert facture.montant_paye == Decimal("0")
+    assert facture.statut == "attente"

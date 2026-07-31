@@ -1,12 +1,11 @@
 {% extends "portail_base.html" %}
 
+{% block titre_page %}Nouvelle commande{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>➕ Nouvelle commande</h1>
-        <p>Sélectionnez les produits que vous souhaitez commander.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('portail_commandes') }}" class="btn btn-secondary">
         <i class="fa-solid fa-arrow-left"></i> Retour
     </a>
@@ -16,10 +15,14 @@
     <form method="POST" novalidate>
         {{ form.hidden_tag() }}
 
+        <div class="section-header" style="margin-bottom:10px;">
+            <h2 style="font-size:14px;">Sélectionner les prestations</h2>
+        </div>
+
         <table class="table">
             <thead>
                 <tr>
-                    <th>Produit</th>
+                    <th>Prestation</th>
                     <th style="width:120px">Quantité</th>
                 </tr>
             </thead>
@@ -33,16 +36,30 @@
             </tbody>
         </table>
 
-        <div class="form-group" style="margin-top:20px; max-width:320px;">
-            {{ form.mode_paiement.label }}
-            {{ form.mode_paiement(class="form-control") }}
-            {% for e in form.mode_paiement.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
-            <p style="font-size:12px; color:var(--muted); margin-top:6px;">
-                Le paiement par carte bancaire n'est pas encore disponible en ligne.
-            </p>
+        <div class="section-header" style="margin-top:24px; margin-bottom:10px;">
+            <h2 style="font-size:14px;">Mode de paiement</h2>
         </div>
 
-        <div class="form-actions" style="margin-top:20px">
+        <div class="mode-paiement-choix">
+            {% for sous_champ in form.mode_paiement %}
+            <label class="mode-paiement-option">
+                {{ sous_champ() }}
+                <div class="contenu">
+                    <strong>{{ sous_champ.label.text }}</strong>
+                    {% if sous_champ.data == 'carte' %}
+                    <span>Bientôt disponible — la commande sera refusée si sélectionné.</span>
+                    {% elif sous_champ.data == 'cheque' %}
+                    <span>Réglez par chèque directement auprès de notre cabinet.</span>
+                    {% else %}
+                    <span>Réglez en espèces directement auprès de notre cabinet.</span>
+                    {% endif %}
+                </div>
+            </label>
+            {% endfor %}
+        </div>
+        {% for e in form.mode_paiement.errors %}<span class="form-error">{{ e }}</span>{% endfor %}
+
+        <div class="form-actions" style="margin-top:22px">
             {{ form.envoyer(class="btn btn-success") }}
             <a href="{{ url_for('portail_commandes') }}" class="btn btn-secondary">Annuler</a>
         </div>

@@ -1,13 +1,9 @@
 {% extends "base.html" %}
 
-{% block contenu %}
+{% block titre_page %}Tableau de bord{% endblock %}
+{% block sous_titre_page %}<small>Vue d'ensemble de l'activité KBTO</small>{% endblock %}
 
-<div class="page-header">
-    <div>
-        <h1>📊 Tableau de bord</h1>
-        <p>Vue d'ensemble de l'activité KBTO.</p>
-    </div>
-</div>
+{% block contenu %}
 
 <div class="dashboard-grid">
 
@@ -22,8 +18,13 @@
     <div class="card green">
         <div class="card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
         <div class="card-content">
-            <h4>Chiffre d'affaires total</h4>
+            <h4>Chiffre d'affaires</h4>
             <h1>{{ "%.2f"|format(ca_total) }} DH</h1>
+            <div class="tendance {{ 'hausse' if variation_ca >= 0 else 'baisse' }}">
+                <i class="fa-solid fa-arrow-{{ 'up' if variation_ca >= 0 else 'down' }}"></i>
+                <span class="val">{{ "%+.1f"|format(variation_ca) }}%</span>
+                <span class="comparatif">vs mois dernier</span>
+            </div>
         </div>
     </div>
 
@@ -32,6 +33,10 @@
         <div class="card-content">
             <h4>Clients</h4>
             <h1>{{ nb_clients }}</h1>
+            <div class="tendance hausse">
+                <span class="val">+{{ nb_clients_ce_mois }}</span>
+                <span class="comparatif">nouveaux ce mois</span>
+            </div>
         </div>
     </div>
 
@@ -48,7 +53,7 @@
 <div class="charts-grid">
 
     <div class="chart-card">
-        <h2>Évolution du chiffre d'affaires</h2>
+        <h2>Évolution du chiffre d'affaires (6 derniers mois)</h2>
         {% if points_ca_liste %}
         <svg viewBox="0 0 560 160" style="width:100%; height:180px;" preserveAspectRatio="none">
             <polyline points="{{ points_ca }}" fill="none" stroke="var(--accent)" stroke-width="3"
@@ -66,7 +71,7 @@
     </div>
 
     <div class="chart-card">
-        <h2>Répartition du stock par catégorie</h2>
+        <h2>Répartition du stock</h2>
         {% if segments_stock %}
         <div class="donut-wrap">
             <svg viewBox="0 0 160 160" width="150" height="150">
@@ -93,27 +98,31 @@
 
 </div>
 
-<div class="dashboard-grid" style="grid-template-columns:2fr 1fr; align-items:start;">
+<div class="dashboard-grid" style="grid-template-columns:1fr 1fr; align-items:start;">
 
     <div class="section" style="margin-bottom:0;">
         <div class="section-header">
-            <h2>🏆 Top produits (par chiffre d'affaires)</h2>
+            <h2>🏆 Prestations les plus demandées</h2>
         </div>
-        <table class="table">
-            <thead>
-                <tr><th>Produit</th><th>Chiffre d'affaires</th></tr>
-            </thead>
-            <tbody>
+        {% if top_produits %}
+        <ul class="rank-list">
+            {% set premier = top_produits[0].total or 1 %}
             {% for produit in top_produits %}
-                <tr>
-                    <td>{{ produit.nom }}</td>
-                    <td>{{ "%.2f"|format(produit.total or 0) }} DH</td>
-                </tr>
-            {% else %}
-                <tr><td colspan="2" class="empty">Aucune vente enregistrée.</td></tr>
+            <li class="rank-item">
+                <span class="rank-badge">{{ loop.index }}</span>
+                <div class="rank-info">
+                    <div class="nom">{{ produit.nom }}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="--pct: {{ ((produit.total or 0) / premier * 100)|round(1) }}%"></div>
+                    </div>
+                </div>
+                <div class="rank-amount">{{ "%.0f"|format(produit.total or 0) }} DH</div>
+            </li>
             {% endfor %}
-            </tbody>
-        </table>
+        </ul>
+        {% else %}
+        <p class="empty">Aucune vente enregistrée.</p>
+        {% endif %}
     </div>
 
     <div class="section" style="margin-bottom:0;">
@@ -193,24 +202,31 @@
 <div class="section">
 
     <div class="section-header">
-        <h2>👥 Derniers clients enregistrés</h2>
+        <h2>👥 Nouveaux clients enregistrés</h2>
         <a href="{{ url_for('liste_clients') }}" class="btn btn-primary">Voir tout</a>
     </div>
 
     <table class="table">
         <thead>
             <tr>
-                <th>Nom</th>
-                <th>Prénom</th>
+                <th>Client</th>
                 <th>Email</th>
+                <th>Statut</th>
             </tr>
         </thead>
         <tbody>
         {% for client in derniers_clients %}
             <tr>
-                <td>{{ client.nom }}</td>
-                <td>{{ client.prenom }}</td>
+                <td>
+                    <div class="cellule-nom">
+                        <div class="avatar-badge c{{ loop.index0 % 5 }}">{{ (client.nom[0] ~ client.prenom[0])|upper }}</div>
+                        <div>
+                            <span class="principal">{{ client.nom }} {{ client.prenom }}</span>
+                        </div>
+                    </div>
+                </td>
                 <td>{{ client.email or "—" }}</td>
+                <td><span class="badge payee">Actif</span></td>
             </tr>
         {% else %}
             <tr>

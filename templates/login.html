@@ -12,19 +12,19 @@
 
     <style>
         :root {
-            --navy: #0F1B2D;
-            --accent: #3D9B84;
-            --accent-fonce: #2E7A68;
-            --texte: #1A2333;
+            --navy: #0A0E17;
+            --accent: #12A889;
+            --accent-fonce: #0D8069;
+            --texte: #151B28;
             --texte-doux: #6B7280;
-            --fond: #F5F6F9;
+            --fond: #F4F6F8;
             --champ-bord: #E4E7EC;
-            --danger: #C0392B;
-            --danger-fond: #FBEAE8;
-            --succes: #2E7A68;
-            --succes-fond: #E7F3F0;
-            --info: #3D6B9B;
-            --info-fond: #E8EFF6;
+            --danger: #D9433D;
+            --danger-fond: #FBE8E7;
+            --succes: #0D8069;
+            --succes-fond: #E3F6F1;
+            --info: #3E6FD9;
+            --info-fond: #E9EEFC;
             --rayon: 16px;
         }
 
@@ -48,70 +48,31 @@
             background: #fff;
             border-radius: var(--rayon);
             box-shadow: 0 12px 36px rgba(15, 27, 45, 0.10);
-            overflow: hidden;
+            padding: 34px 32px 36px;
         }
-
-        /* ---------- Illustration ---------- */
-        .illustration {
-            position: relative;
-            height: 170px;
-            background: radial-gradient(circle at 70% 20%, #1E2E4A 0%, var(--navy) 55%, #0A121F 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .illustration .etoile {
-            position: absolute;
-            background: #fff;
-            border-radius: 50%;
-            opacity: 0.85;
-        }
-
-        .illustration .astronaute {
-            position: relative;
-            z-index: 2;
-            font-size: 54px;
-            color: #EDEFF4;
-            filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
-        }
-
-        .illustration .sol {
-            position: absolute;
-            bottom: -30px;
-            left: -10%;
-            width: 120%;
-            height: 60px;
-            background: #E7E9EE;
-            border-radius: 50%;
-        }
-
-        /* ---------- Contenu ---------- */
-        .contenu { padding: 30px 32px 34px; }
 
         .marque {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 18px;
+            gap: 12px;
+            margin-bottom: 26px;
         }
         .marque .badge {
-            width: 30px; height: 30px;
-            border-radius: 9px;
-            background: var(--accent);
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-fonce));
             color: #fff;
             display: flex; align-items: center; justify-content: center;
             font-family: 'Poppins', sans-serif;
             font-weight: 800;
-            font-size: 12px;
+            font-size: 15px;
+            flex-shrink: 0;
         }
-        .marque span {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 13.5px;
+        .marque .texte strong{ display:block; font-size:15px; font-weight:700; }
+        .marque .texte span {
+            font-size: 12px;
             color: var(--texte-doux);
-            letter-spacing: 0.03em;
+            letter-spacing: 0.02em;
         }
 
         h1 {
@@ -136,17 +97,9 @@
             margin-bottom: 7px;
         }
         .champ-icone { position: relative; }
-        .champ-icone i {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--texte-doux);
-            font-size: 13.5px;
-        }
         .champ-icone input {
             width: 100%;
-            padding: 12px 14px 12px 38px;
+            padding: 12px 14px;
             font-size: 14.5px;
             font-family: inherit;
             color: var(--texte);
@@ -158,8 +111,27 @@
         .champ-icone input:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(61, 155, 132, 0.14);
+            box-shadow: 0 0 0 3px rgba(18, 168, 137, 0.14);
         }
+        .champ-icone.avec-toggle input { padding-right: 42px; }
+        .champ-icone .toggle-mdp {
+            position: absolute;
+            right: 6px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: none;
+            border: none;
+            border-radius: 6px;
+            color: var(--texte-doux);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .champ-icone .toggle-mdp:hover { color: var(--texte); background: var(--fond); }
         .champ .erreur {
             display: block;
             color: var(--danger);
@@ -256,8 +228,8 @@
             margin-bottom: 18px;
             border: 1px solid transparent;
         }
-        .flash-danger  { background: var(--danger-fond); color: var(--danger); border-color: #FECACA; }
-        .flash-success { background: var(--succes-fond); color: var(--succes); border-color: #A7F3D0; }
+        .flash-danger  { background: var(--danger-fond); color: var(--danger); border-color: #F3C9C7; }
+        .flash-success { background: var(--succes-fond); color: var(--succes); border-color: #BFE8DD; }
         .flash-info    { background: var(--info-fond);   color: var(--info);   border-color: #BFDBFE; }
     </style>
 </head>
@@ -265,87 +237,89 @@
 
     <div class="carte">
 
-        <div class="illustration">
-            <span class="etoile" style="width:3px;height:3px;top:18%;left:12%;"></span>
-            <span class="etoile" style="width:2px;height:2px;top:30%;left:28%;"></span>
-            <span class="etoile" style="width:3px;height:3px;top:15%;left:75%;"></span>
-            <span class="etoile" style="width:2px;height:2px;top:55%;left:85%;"></span>
-            <span class="etoile" style="width:2px;height:2px;top:65%;left:20%;"></span>
-            <span class="etoile" style="width:3px;height:3px;top:40%;left:55%;"></span>
-            <span class="etoile" style="width:2px;height:2px;top:22%;left:45%;"></span>
-            <i class="fa-solid fa-user-astronaut astronaute"></i>
-            <div class="sol"></div>
+        <div class="marque">
+            <div class="badge">KB</div>
+            <div class="texte">
+                <strong>KBTO</strong>
+                <span>Cabinet comptable agréé</span>
+            </div>
         </div>
 
-        <div class="contenu">
+        <h1>Connexion</h1>
+        <p class="sous-titre">Connectez-vous pour accéder à votre espace.</p>
 
-            <div class="marque">
-                <div class="badge">KB</div>
-                <span>KBTO — Conseiller fiscal</span>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for categorie, message in messages %}
+                <div class="flash flash-{{ categorie }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('connexion') }}" novalidate>
+            {{ form.hidden_tag() }}
+
+            <div class="champ">
+                {{ form.nom_utilisateur.label }}
+                <div class="champ-icone">
+                    {{ form.nom_utilisateur(placeholder="nom@exemple.com") }}
+                </div>
+                {% for erreur in form.nom_utilisateur.errors %}
+                    <span class="erreur">{{ erreur }}</span>
+                {% endfor %}
             </div>
 
-            <h1>Bon retour</h1>
-            <p class="sous-titre">Connectez-vous pour accéder à votre espace.</p>
-
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% for categorie, message in messages %}
-                    <div class="flash flash-{{ categorie }}">{{ message }}</div>
+            <div class="champ">
+                {{ form.mot_de_passe.label }}
+                <div class="champ-icone avec-toggle">
+                    {{ form.mot_de_passe(placeholder="Votre mot de passe") }}
+                    <button type="button" class="toggle-mdp" tabindex="-1"
+                            aria-label="Afficher le mot de passe"
+                            onclick="basculerAffichageMotDePasse(this)">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+                {% for erreur in form.mot_de_passe.errors %}
+                    <span class="erreur">{{ erreur }}</span>
                 {% endfor %}
-            {% endwith %}
+            </div>
 
-            <form method="POST" action="{{ url_for('connexion') }}" novalidate>
-                {{ form.hidden_tag() }}
+            <div class="ligne-options">
+                <label class="checkbox">
+                    {{ form.se_souvenir() }} Se souvenir de moi
+                </label>
+            </div>
 
-                <div class="champ">
-                    {{ form.nom_utilisateur.label }}
-                    <div class="champ-icone">
-                        <i class="fa-solid fa-at"></i>
-                        {{ form.nom_utilisateur(placeholder="nom@exemple.com") }}
-                    </div>
-                    {% for erreur in form.nom_utilisateur.errors %}
-                        <span class="erreur">{{ erreur }}</span>
-                    {% endfor %}
-                </div>
+            {{ form.envoyer(class="btn-connexion") }}
+        </form>
 
-                <div class="champ">
-                    {{ form.mot_de_passe.label }}
-                    <div class="champ-icone">
-                        <i class="fa-solid fa-lock"></i>
-                        {{ form.mot_de_passe(placeholder="Votre mot de passe") }}
-                    </div>
-                    {% for erreur in form.mot_de_passe.errors %}
-                        <span class="erreur">{{ erreur }}</span>
-                    {% endfor %}
-                </div>
+        <div class="separateur">Ou continuer avec</div>
 
-                <div class="ligne-options">
-                    <label class="checkbox">
-                        {{ form.se_souvenir() }} Se souvenir de moi
-                    </label>
-                </div>
+        <a class="btn-social" href="{{ url_for('connexion_oauth', fournisseur='google') }}">
+            <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.3 0 10.1-2 13.7-5.4l-6.3-5.3C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.3 5.3C39.7 37 44 31 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+            Continuer avec Google
+        </a>
 
-                {{ form.envoyer(class="btn-connexion") }}
-            </form>
+        <a class="btn-social github" href="{{ url_for('connexion_oauth', fournisseur='github') }}">
+            <i class="fa-brands fa-github" style="font-size:17px;"></i>
+            Continuer avec GitHub
+        </a>
 
-            <div class="separateur">Ou continuer avec</div>
-
-            <a class="btn-social" href="{{ url_for('connexion_oauth', fournisseur='google') }}">
-                <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.3 0 10.1-2 13.7-5.4l-6.3-5.3C29.3 35.1 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.6 39.6 16.3 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.2 5.6l6.3 5.3C39.7 37 44 31 44 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
-                Continuer avec Google
-            </a>
-
-            <a class="btn-social github" href="{{ url_for('connexion_oauth', fournisseur='github') }}">
-                <i class="fa-brands fa-github" style="font-size:17px;"></i>
-                Continuer avec GitHub
-            </a>
-
-            <p class="pied">
-                Vous êtes un client ? <a href="{{ url_for('inscription') }}">Créer un compte</a>
-            </p>
-
-        </div>
+        <p class="pied">
+            Vous êtes un client ? <a href="{{ url_for('inscription') }}">Créer un compte</a>
+        </p>
 
     </div>
+
+    <script>
+        function basculerAffichageMotDePasse(bouton) {
+            var champ = bouton.previousElementSibling;
+            var icone = bouton.querySelector('i');
+            var visible = champ.type === 'text';
+            champ.type = visible ? 'password' : 'text';
+            icone.classList.toggle('fa-eye', visible);
+            icone.classList.toggle('fa-eye-slash', !visible);
+            bouton.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+        }
+    </script>
 
 </body>
 </html>

@@ -1,12 +1,11 @@
 {% extends "portail_base.html" %}
 
+{% block titre_page %}Facture {{ facture.numero }}{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>🧾 Facture {{ facture.numero }}</h1>
-        <p>Détail de votre commande.</p>
-    </div>
+    <div></div>
     <div>
         <a href="{{ url_for('portail_facture_imprimer', id=facture.id) }}" class="btn btn-secondary" target="_blank">
             <i class="fa-solid fa-print"></i> Imprimer
@@ -20,87 +19,47 @@
     </div>
 </div>
 
-<div class="section">
-    <div class="invoice-meta">
-        <div class="item">
-            <small>Date</small>
-            <strong>{{ facture.date.strftime('%d/%m/%Y') if facture.date else "—" }}</strong>
-        </div>
-        <div class="item">
-            <small>Statut</small>
-            <strong>
-                {% if facture.statut == 'payee' %}
-                    <span class="badge payee">Payée</span>
-                {% elif facture.statut == 'annulee' %}
-                    <span class="badge annulee">Annulée</span>
-                {% else %}
-                    <span class="badge attente">En attente</span>
-                {% endif %}
-            </strong>
-        </div>
-        <div class="item">
-            <small>Total</small>
-            <strong>{{ "%.2f"|format(facture.total or 0) }} DH</strong>
-        </div>
-        <div class="item">
-            <small>Reste à payer</small>
-            <strong>{{ "%.2f"|format(facture.montant_restant) }} DH</strong>
-        </div>
+<div class="meta-grid" style="grid-template-columns:repeat(3, 1fr);">
+
+    <div class="meta-card">
+        <div class="titre">Montant total</div>
+        <div class="principal" style="font-size:22px;">{{ "%.2f"|format(facture.total or 0) }} DH</div>
     </div>
 
-    {% if facture.statut != 'payee' and facture.montant_restant > 0 %}
-    <div style="margin-top:16px">
-        {% if cle_stripe_configuree %}
-        <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-primary">
-                <i class="fa-solid fa-credit-card"></i> Payer {{ "%.2f"|format(facture.montant_restant) }} DH en ligne
-            </button>
-        </form>
-        {% else %}
-        <p class="empty" style="text-align:left; padding:0;">Le paiement en ligne n'est pas encore configuré. Vous pouvez régler par chèque ou en espèces directement auprès de notre cabinet.</p>
+    <div class="meta-card">
+        <div class="titre">Montant réglé</div>
+        <div class="principal" style="font-size:22px; color:var(--accent-dark);">{{ "%.2f"|format(facture.montant_paye) }} DH</div>
+    </div>
+
+    <div class="meta-card" style="{{ 'border-color:#F3C9C7; background:var(--danger-soft);' if facture.montant_restant > 0 }}">
+        <div class="titre">Solde restant</div>
+        <div class="principal" style="font-size:22px; color:{{ 'var(--danger)' if facture.montant_restant > 0 else 'var(--ink)' }};">{{ "%.2f"|format(facture.montant_restant) }} DH</div>
+        {% if facture.statut != 'payee' and facture.montant_restant > 0 %}
+            {% if cle_stripe_configuree %}
+            <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}" style="margin-top:10px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fa-solid fa-credit-card"></i> Paiement en ligne
+                </button>
+            </form>
+            {% else %}
+            <p style="font-size:11.5px; color:var(--muted); margin-top:8px;">Paiement en ligne non configuré — réglez par chèque ou en espèces auprès du cabinet.</p>
+            {% endif %}
         {% endif %}
     </div>
-    {% endif %}
+
 </div>
 
 <div class="section">
     <div class="section-header">
-        <h2>Historique des paiements</h2>
-    </div>
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Moyen de paiement</th>
-                <th>Montant</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for paiement in facture.paiements %}
-            <tr>
-                <td>{{ paiement.date_paiement.strftime('%d/%m/%Y') if paiement.date_paiement else "—" }}</td>
-                <td>{{ paiement.methode_libelle }}</td>
-                <td>{{ "%.2f"|format(paiement.montant) }} DH</td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="3" class="empty">Aucun paiement enregistré pour le moment.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-</div>
-
-<div class="section">
-    <div class="section-header">
-        <h2>Produits commandés</h2>
+        <h2>Détail des prestations</h2>
+        <span class="badge {{ 'payee' if facture.statut == 'payee' else ('annulee' if facture.statut == 'annulee' else 'attente') }}">{{ facture.statut_libelle }}</span>
     </div>
 
     <table class="table">
         <thead>
             <tr>
-                <th>Produit</th>
+                <th>Description</th>
                 <th>Quantité</th>
                 <th>Prix unitaire</th>
                 <th>Sous-total</th>
@@ -123,6 +82,36 @@
     </table>
 
     <div class="invoice-total">Total : {{ "%.2f"|format(facture.total or 0) }} DH</div>
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Historique des paiements reçus</h2>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date du paiement</th>
+                <th>Montant</th>
+                <th>Moyen de paiement</th>
+                <th>Référence / Justificatif</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for paiement in facture.paiements %}
+            <tr>
+                <td>{{ paiement.date_paiement.strftime('%d/%m/%Y') if paiement.date_paiement else "—" }}</td>
+                <td>{{ "%.2f"|format(paiement.montant) }} DH</td>
+                <td>{{ paiement.methode_libelle }}</td>
+                <td>{{ paiement.reference or "—" }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="4" class="empty">Aucun paiement enregistré pour le moment.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 </div>
 
 {% endblock %}

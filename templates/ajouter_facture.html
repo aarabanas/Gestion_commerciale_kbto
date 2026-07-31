@@ -1,12 +1,11 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Nouvelle facture{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>➕ Nouvelle facture</h1>
-        <p>Choisissez le client, le statut, et ajoutez directement les produits.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('liste_factures') }}" class="btn btn-secondary">
         <i class="fa-solid fa-arrow-left"></i> Retour
     </a>

@@ -1,12 +1,12 @@
 {% extends "portail_base.html" %}
 
+{% block titre_page %}Tableau de bord{% endblock %}
+{% block sous_titre_page %}<small>Résumé de vos achats chez KBTO</small>{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>📊 Mon tableau de bord</h1>
-        <p>Résumé de vos achats chez KBTO.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('portail_ajouter_commande') }}" class="btn btn-primary">
         <i class="fa-solid fa-plus"></i> Nouvelle commande
     </a>
@@ -17,7 +17,7 @@
     <div class="card blue">
         <div class="card-icon"><i class="fa-solid fa-cart-shopping"></i></div>
         <div class="card-content">
-            <h4>Commandes passées</h4>
+            <h4>Total achats</h4>
             <h1>{{ nb_commandes }}</h1>
         </div>
     </div>
@@ -25,12 +25,12 @@
     <div class="card green">
         <div class="card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
         <div class="card-content">
-            <h4>Montant total des factures</h4>
+            <h4>Montant factures</h4>
             <h1>{{ "%.2f"|format(montant_total) }} DH</h1>
         </div>
     </div>
 
-    <div class="card orange">
+    <div class="card purple">
         <div class="card-icon"><i class="fa-solid fa-hourglass-half"></i></div>
         <div class="card-content">
             <h4>Commandes en cours</h4>
@@ -38,6 +38,31 @@
         </div>
     </div>
 
+    <div class="card orange">
+        <div class="card-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="card-content">
+            <h4>Factures impayées</h4>
+            <h1>{{ nb_impayees }}</h1>
+        </div>
+    </div>
+
+</div>
+
+<div class="section">
+    <div class="section-header">
+        <h2>Actions rapides</h2>
+    </div>
+    <div class="dashboard-actions" style="margin-bottom:0;">
+        <a href="{{ url_for('portail_ajouter_commande') }}" class="btn btn-success">
+            <i class="fa-solid fa-plus"></i> Créer une commande
+        </a>
+        <a href="{{ url_for('portail_factures') }}" class="btn btn-info">
+            <i class="fa-solid fa-file-arrow-down"></i> Télécharger mes documents
+        </a>
+        <a href="{{ url_for('portail_profil') }}" class="btn btn-secondary">
+            <i class="fa-solid fa-envelope"></i> Contacter mon comptable
+        </a>
+    </div>
 </div>
 
 <div class="section">

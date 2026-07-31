@@ -1,29 +1,30 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Gestion des utilisateurs{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>🛡️ Utilisateurs</h1>
-        <p>Gérez les comptes ayant accès à l'application.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('ajouter_utilisateur') }}" class="btn btn-primary">
-        <i class="fa-solid fa-plus"></i> Nouvel utilisateur
+        <i class="fa-solid fa-plus"></i> Ajouter un utilisateur
     </a>
 </div>
 
 <div class="section">
 
     <div class="section-header">
-        <h2>Liste des utilisateurs</h2>
+        <div>
+            <h2>Membres de l'équipe</h2>
+            <p style="margin:4px 0 0; color:var(--muted); font-size:12.5px;">Gérez les accès des collaborateurs et leurs rôles respectifs au sein du cabinet comptable.</p>
+        </div>
     </div>
 
     <table class="table">
         <thead>
             <tr>
-                <th>Nom d'utilisateur</th>
-                <th>Nom</th>
-                <th>Email</th>
+                <th>Nom complet</th>
+                <th>Adresse e-mail</th>
                 <th>Rôle</th>
                 <th>Actions</th>
             </tr>
@@ -31,31 +32,40 @@
         <tbody>
         {% for utilisateur in utilisateurs %}
             <tr>
-                <td>{{ utilisateur.nom_utilisateur }}</td>
-                <td>{{ utilisateur.nom }} {{ utilisateur.prenom }}</td>
+                <td>
+                    <div class="cellule-nom">
+                        <div class="avatar-badge c{{ loop.index0 % 5 }}">{{ (utilisateur.prenom[0] ~ utilisateur.nom[0])|upper }}</div>
+                        <div>
+                            <span class="principal">{{ utilisateur.prenom }} {{ utilisateur.nom }}</span>
+                            <span class="secondaire">@{{ utilisateur.nom_utilisateur }}</span>
+                        </div>
+                    </div>
+                </td>
                 <td>{{ utilisateur.email }}</td>
                 <td>
                     {% if utilisateur.role == 'administrateur' %}
-                        <span class="badge payee">Administrateur</span>
+                        <span class="badge role-admin">Administrateur</span>
                     {% else %}
-                        <span class="badge attente">Employé</span>
+                        <span class="badge role-employe">Collaborateur</span>
                     {% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('modifier_utilisateur', id=utilisateur.id) }}" class="btn btn-warning">Modifier</a>
-                    {% if utilisateur.id != current_user.id %}
-                    <form method="POST" action="{{ url_for('supprimer_utilisateur', id=utilisateur.id) }}"
-                          style="display:inline"
-                          onsubmit="return confirm('Supprimer cet utilisateur ?')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                    </form>
-                    {% endif %}
+                    <div class="icon-actions">
+                        <a href="{{ url_for('modifier_utilisateur', id=utilisateur.id) }}" class="icon-btn edit" title="Modifier"><i class="fa-solid fa-pen"></i></a>
+                        {% if utilisateur.id != current_user.id %}
+                        <form method="POST" action="{{ url_for('supprimer_utilisateur', id=utilisateur.id) }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Supprimer cet utilisateur ?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="icon-btn delete" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
         {% else %}
             <tr>
-                <td colspan="5" class="empty">Aucun utilisateur enregistré.</td>
+                <td colspan="4" class="empty">Aucun utilisateur enregistré.</td>
             </tr>
         {% endfor %}
         </tbody>

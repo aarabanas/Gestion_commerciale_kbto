@@ -1,5 +1,5 @@
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
 from io import BytesIO
@@ -13,6 +13,7 @@ from flask import (
     Flask,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     send_file,
@@ -48,6 +49,8 @@ from forms import (
     FactureForm,
     InscriptionClientForm,
     LigneFactureForm,
+    LONGUEUR_MIN_MOT_DE_PASSE,
+    LONGUEUR_MIN_NOM_UTILISATEUR,
     PaiementForm,
     StatutFactureForm,
     UtilisateurForm,
@@ -72,15 +75,45 @@ load_dotenv()
 
 app = Flask(__name__)
 
-app.config["SECRET_KEY"] = os.getenv(
-    "SECRET_KEY",
-    "cle-developpement-gestion-commerciale",
-)
+# Valeur de repli utilisee uniquement en developpement local (jamais commitee
+# comme vraie cle secrete). Si elle est encore active en production, les
+# cookies de session ET les tokens CSRF seraient signes avec une valeur
+# visible dans le code source -> garde-fou juste en dessous.
+CLE_SECRETE_PAR_DEFAUT = "cle-developpement-gestion-commerciale"
+
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", CLE_SECRETE_PAR_DEFAUT)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "DATABASE_URL", "sqlite:///gestion_commerciale.db"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Securite des cookies de session (et du cookie "remember me" de Flask-Login) :
+# HttpOnly + SameSite=Lax explicites (defense en profondeur), et Secure force
+# des que l'app tourne en production (FLASK_ENV=production dans .env), pour
+# ne jamais transmettre le cookie de session en clair sur HTTP. En local/tests
+# (FLASK_ENV non defini), Secure reste desactive pour ne pas casser le
+# developpement sur http://127.0.0.1.
+MODE_PRODUCTION = os.getenv("FLASK_ENV", "").strip().lower() == "production"
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = MODE_PRODUCTION
+app.config["REMEMBER_COOKIE_HTTPONLY"] = True
+app.config["REMEMBER_COOKIE_SAMESITE"] = "Lax"
+app.config["REMEMBER_COOKIE_SECURE"] = MODE_PRODUCTION
+
+# Garde-fou : on refuse de demarrer si la cle secrete par defaut (visible
+# dans le code source) est encore active alors que l'app est declaree en
+# production. Sans ce garde-fou, un deploiement en prod sans SECRET_KEY dans
+# .env signerait sessions et CSRF avec une valeur connue de quiconque lit le
+# depot -> sessions falsifiables et protection CSRF contournable.
+if MODE_PRODUCTION and app.config["SECRET_KEY"] == CLE_SECRETE_PAR_DEFAUT:
+    raise RuntimeError(
+        "SECRET_KEY par défaut détectée alors que FLASK_ENV=production. "
+        "Définissez une vraie valeur secrète (aléatoire, unique) dans le "
+        "fichier .env avant de démarrer l'application en production."
+    )
 
 # Cle secrete Stripe (mode test). Tant qu'elle n'est pas fournie via .env,
 # le paiement en ligne affiche un message explicite au lieu de planter.
@@ -181,6 +214,39 @@ def accueil():
     return redirect(url_for("connexion"))
 
 
+# Protection anti brute-force sur /connexion : compteur d'echecs en memoire
+# du processus, par identifiant normalise (pas par IP, pour ne pas bloquer
+# tout un reseau/proxy partage a cause d'un seul compte). Volontairement sans
+# nouvelle dependance (pas de Redis/Flask-Limiter) : suffisant pour un seul
+# worker de processus ; a remplacer par un stockage partage si l'app est un
+# jour deployee derriere plusieurs workers/instances.
+LIMITE_TENTATIVES_CONNEXION = 5
+FENETRE_VERROUILLAGE_CONNEXION = timedelta(minutes=10)
+_tentatives_echouees_connexion = {}
+
+
+def _connexion_est_verrouillee(identifiant):
+    entree = _tentatives_echouees_connexion.get(identifiant)
+    if entree is None:
+        return False
+    nb_echecs, dernier_echec = entree
+    if nb_echecs < LIMITE_TENTATIVES_CONNEXION:
+        return False
+    if datetime.now(timezone.utc) - dernier_echec > FENETRE_VERROUILLAGE_CONNEXION:
+        _tentatives_echouees_connexion.pop(identifiant, None)
+        return False
+    return True
+
+
+def _enregistrer_echec_connexion(identifiant):
+    nb_echecs, _ = _tentatives_echouees_connexion.get(identifiant, (0, None))
+    _tentatives_echouees_connexion[identifiant] = (nb_echecs + 1, datetime.now(timezone.utc))
+
+
+def _reinitialiser_echecs_connexion(identifiant):
+    _tentatives_echouees_connexion.pop(identifiant, None)
+
+
 @app.route("/connexion", methods=["GET", "POST"])
 def connexion():
     if current_user.is_authenticated:
@@ -191,18 +257,29 @@ def connexion():
     if form.validate_on_submit():
         identifiant = form.nom_utilisateur.data.strip().lower()
 
+        if _connexion_est_verrouillee(identifiant):
+            flash(
+                "Trop de tentatives de connexion échouées. Merci de réessayer "
+                "dans quelques minutes.",
+                "danger",
+            )
+            return render_template("login.html", form=form)
+
         utilisateur = Utilisateur.query.filter_by(nom_utilisateur=identifiant).first()
         if utilisateur and utilisateur.verifier_mot_de_passe(form.mot_de_passe.data):
+            _reinitialiser_echecs_connexion(identifiant)
             login_user(utilisateur, remember=form.se_souvenir.data)
             flash("Connexion réussie.", "success")
             return redirect(url_for("tableau_de_bord"))
 
         client = Client.query.filter_by(email=identifiant).first()
         if client and client.a_un_compte() and client.verifier_mot_de_passe(form.mot_de_passe.data):
+            _reinitialiser_echecs_connexion(identifiant)
             login_user(client, remember=form.se_souvenir.data)
             flash("Connexion réussie.", "success")
             return redirect(url_for("portail_tableau_de_bord"))
 
+        _enregistrer_echec_connexion(identifiant)
         flash("Identifiant ou mot de passe incorrect.", "danger")
 
     return render_template("login.html", form=form)
@@ -320,6 +397,32 @@ MOIS_FR = {
 }
 SEUIL_STOCK_FAIBLE = 5
 JOURS_FACTURE_EN_RETARD = 7
+# Nombre d'elements affiches dans les listes "top N" du tableau de bord
+# (produits/clients recents, produits en stock critique, dernieres commandes
+# du portail) : purement une limite d'affichage, pas une regle metier.
+NB_ELEMENTS_TABLEAU_DE_BORD = 5
+NB_TOP_CLIENTS_TABLEAU_DE_BORD = 3
+# Nombre max de resultats retournes par la recherche globale (personnel),
+# par categorie (clients / produits), pour eviter des pages de resultats
+# demesurees sur une recherche large.
+LIMITE_RESULTATS_RECHERCHE = 15
+# Facteur de conversion DH <-> centimes attendu par l'API Stripe (les montants
+# Stripe sont toujours exprimes dans la plus petite unite de la devise).
+CENTIMES_PAR_DH = 100
+
+
+def variation_pourcentage(actuel, precedent):
+    """Variation en % entre deux montants, pour les badges de tendance des tableaux de bord."""
+    actuel = float(actuel or 0)
+    precedent = float(precedent or 0)
+    if precedent == 0:
+        return 100.0 if actuel > 0 else 0.0
+    return round((actuel - precedent) / precedent * 100, 1)
+
+
+@app.context_processor
+def injecter_globales():
+    return {"current_year": date.today().year}
 
 
 @app.context_processor
@@ -406,7 +509,7 @@ def tableau_de_bord():
         Produit.nom,
         db.func.sum(DetailFacture.quantite * DetailFacture.prix_unitaire).label("total"),
     ).join(DetailFacture, DetailFacture.produit_id == Produit.id) \
-     .group_by(Produit.id).order_by(db.desc("total")).limit(5).all()
+     .group_by(Produit.id).order_by(db.desc("total")).limit(NB_ELEMENTS_TABLEAU_DE_BORD).all()
 
     # --- Top clients (avec mini-tendance de leurs factures) ---
     lignes_top_clients = db.session.query(
@@ -414,7 +517,7 @@ def tableau_de_bord():
         db.func.count(Facture.id).label("nb_factures"),
         db.func.sum(Facture.total).label("total"),
     ).join(Facture, Facture.client_id == Client.id) \
-     .group_by(Client.id).order_by(db.desc("total")).limit(3).all()
+     .group_by(Client.id).order_by(db.desc("total")).limit(NB_TOP_CLIENTS_TABLEAU_DE_BORD).all()
 
     top_clients = []
     for ligne in lignes_top_clients:
@@ -432,7 +535,7 @@ def tableau_de_bord():
     produits_critiques = (
         Produit.query.filter(Produit.quantite <= SEUIL_STOCK_FAIBLE)
         .order_by(Produit.quantite)
-        .limit(5)
+        .limit(NB_ELEMENTS_TABLEAU_DE_BORD)
         .all()
     )
 
@@ -448,7 +551,19 @@ def tableau_de_bord():
         min(round(float(ca_mois) / float(objectif) * 100, 1), 100) if objectif else 0
     )
 
-    derniers_clients = Client.query.order_by(Client.id.desc()).limit(5).all()
+    # --- Variation du CA du mois vs le mois precedent (pour le badge de tendance) ---
+    fin_mois_precedent = debut_mois - timedelta(days=1)
+    debut_mois_precedent = fin_mois_precedent.replace(day=1)
+    ca_mois_precedent = db.session.query(
+        db.func.coalesce(db.func.sum(Facture.total), 0)
+    ).filter(Facture.date >= debut_mois_precedent, Facture.date < debut_mois).scalar()
+    variation_ca = variation_pourcentage(ca_mois, ca_mois_precedent)
+
+    nb_clients_ce_mois = Client.query.filter(Client.id.in_(
+        db.session.query(Facture.client_id).filter(Facture.date >= debut_mois)
+    )).count()
+
+    derniers_clients = Client.query.order_by(Client.id.desc()).limit(NB_ELEMENTS_TABLEAU_DE_BORD).all()
 
     return render_template(
         "dashboard.html",
@@ -469,6 +584,8 @@ def tableau_de_bord():
         ca_mois=ca_mois,
         objectif=objectif,
         pourcentage_objectif=pourcentage_objectif,
+        variation_ca=variation_ca,
+        nb_clients_ce_mois=nb_clients_ce_mois,
         derniers_clients=derniers_clients,
     )
 
@@ -491,10 +608,10 @@ def creer_admin(nom_utilisateur, nom, prenom, email, mot_de_passe):
     nom_utilisateur = nom_utilisateur.strip().lower()
     email = email.strip().lower()
 
-    if len(nom_utilisateur) < 3:
+    if len(nom_utilisateur) < LONGUEUR_MIN_NOM_UTILISATEUR:
         click.echo("Le nom d'utilisateur doit contenir au moins 3 caractères.")
         return
-    if len(mot_de_passe) < 8:
+    if len(mot_de_passe) < LONGUEUR_MIN_MOT_DE_PASSE:
         click.echo("Le mot de passe doit contenir au moins 8 caractères.")
         return
     if Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first():
@@ -640,8 +757,13 @@ def recherche():
     if q:
         clients_trouves = Client.query.filter(
             Client.nom.contains(q) | Client.prenom.contains(q) | Client.email.contains(q)
-        ).order_by(Client.nom).limit(15).all()
-        produits_trouves = Produit.query.filter(Produit.nom.contains(q)).order_by(Produit.nom).limit(15).all()
+        ).order_by(Client.nom).limit(LIMITE_RESULTATS_RECHERCHE).all()
+        produits_trouves = (
+            Produit.query.filter(Produit.nom.contains(q))
+            .order_by(Produit.nom)
+            .limit(LIMITE_RESULTATS_RECHERCHE)
+            .all()
+        )
         if q.upper().startswith("FA-"):
             try:
                 factures_trouvees = [db.session.get(Facture, int(q.upper().removeprefix("FA-")))]
@@ -825,12 +947,20 @@ def supprimer_produit(id):
 @app.route("/factures")
 @login_required
 def liste_factures():
-    factures = Facture.query.order_by(Facture.id.desc()).all()
+    toutes_les_factures = Facture.query.order_by(Facture.id.desc()).all()
 
-    total_facture = sum((f.total or Decimal("0")) for f in factures)
-    total_paye = sum((f.total or Decimal("0")) for f in factures if f.statut == "payee")
-    nb_attente = sum(1 for f in factures if f.statut == "attente")
-    nb_envoyees = sum(1 for f in factures if f.envoyee)
+    total_facture = sum((f.total or Decimal("0")) for f in toutes_les_factures)
+    total_paye = sum((f.total or Decimal("0")) for f in toutes_les_factures if f.statut == "payee")
+    nb_attente = sum(1 for f in toutes_les_factures if f.statut == "attente")
+    nb_envoyees = sum(1 for f in toutes_les_factures if f.envoyee)
+    nb_payees = sum(1 for f in toutes_les_factures if f.statut == "payee")
+
+    filtre_statut = request.args.get("statut", "")
+    if filtre_statut in STATUTS_FACTURE:
+        factures = [f for f in toutes_les_factures if f.statut == filtre_statut]
+    else:
+        filtre_statut = ""
+        factures = toutes_les_factures
 
     return render_template(
         "facture.html",
@@ -839,6 +969,9 @@ def liste_factures():
         total_paye=total_paye,
         nb_attente=nb_attente,
         nb_envoyees=nb_envoyees,
+        nb_payees=nb_payees,
+        nb_toutes=len(toutes_les_factures),
+        filtre_statut=filtre_statut,
     )
 
 
@@ -979,13 +1112,25 @@ def rapports():
     )
 
 
-@app.route("/factures/<int:id>", methods=["GET", "POST"])
-@login_required
-def detail_facture(id):
+def obtenir_facture_ou_rediriger(id):
+    """Recupere une facture (cote personnel) par id, ou renvoie directement
+    une reponse de redirection avec un message "introuvable" vers la liste
+    des factures. Usage : `facture, reponse = obtenir_facture_ou_rediriger(id)`
+    puis `if reponse: return reponse`. Factorise un motif identique repete
+    sur toutes les routes personnel qui operent sur une facture existante."""
     facture = db.session.get(Facture, id)
     if facture is None:
         flash("Facture introuvable.", "danger")
-        return redirect(url_for("liste_factures"))
+        return None, redirect(url_for("liste_factures"))
+    return facture, None
+
+
+@app.route("/factures/<int:id>", methods=["GET", "POST"])
+@login_required
+def detail_facture(id):
+    facture, reponse = obtenir_facture_ou_rediriger(id)
+    if reponse:
+        return reponse
 
     form = LigneFactureForm()
     form.produit.choices = [
@@ -1041,10 +1186,9 @@ def supprimer_ligne_facture(facture_id, ligne_id):
 @app.route("/factures/<int:id>/statut", methods=["POST"])
 @login_required
 def changer_statut_facture(id):
-    facture = db.session.get(Facture, id)
-    if facture is None:
-        flash("Facture introuvable.", "danger")
-        return redirect(url_for("liste_factures"))
+    facture, reponse = obtenir_facture_ou_rediriger(id)
+    if reponse:
+        return reponse
 
     form = StatutFactureForm()
     if form.validate_on_submit():
@@ -1060,10 +1204,9 @@ def changer_statut_facture(id):
 @app.route("/factures/<int:id>/marquer-envoyee", methods=["POST"])
 @login_required
 def marquer_facture_envoyee(id):
-    facture = db.session.get(Facture, id)
-    if facture is None:
-        flash("Facture introuvable.", "danger")
-        return redirect(url_for("liste_factures"))
+    facture, reponse = obtenir_facture_ou_rediriger(id)
+    if reponse:
+        return reponse
 
     facture.envoyee = True
     facture.date_envoi = db.func.now()
@@ -1095,10 +1238,9 @@ def enregistrer_paiement(facture, montant, methode, reference=None):
 @app.route("/factures/<int:id>/paiements/ajouter", methods=["POST"])
 @login_required
 def ajouter_paiement(id):
-    facture = db.session.get(Facture, id)
-    if facture is None:
-        flash("Facture introuvable.", "danger")
-        return redirect(url_for("liste_factures"))
+    facture, reponse = obtenir_facture_ou_rediriger(id)
+    if reponse:
+        return reponse
 
     form = PaiementForm()
     if form.validate_on_submit():
@@ -1111,6 +1253,12 @@ def ajouter_paiement(id):
         flash("Paiement invalide, merci de vérifier les champs.", "danger")
 
     return redirect(url_for("detail_facture", id=id))
+
+
+# Mise en page du PDF de facture : marge haut/bas de la page, et taille
+# (carree) du logo entreprise s'il est present.
+MARGE_PAGE_PDF = 20 * mm
+TAILLE_LOGO_PDF = 30 * mm
 
 
 def generer_pdf_facture(facture):
@@ -1126,8 +1274,8 @@ def generer_pdf_facture(facture):
     document = SimpleDocTemplate(
         tampon,
         pagesize=A4,
-        topMargin=20 * mm,
-        bottomMargin=20 * mm,
+        topMargin=MARGE_PAGE_PDF,
+        bottomMargin=MARGE_PAGE_PDF,
     )
     styles = getSampleStyleSheet()
     elements = []
@@ -1135,7 +1283,7 @@ def generer_pdf_facture(facture):
     if params.logo:
         chemin_logo = os.path.join(app.root_path, "static", "uploads", params.logo)
         if os.path.exists(chemin_logo):
-            elements.append(Image(chemin_logo, width=30 * mm, height=30 * mm))
+            elements.append(Image(chemin_logo, width=TAILLE_LOGO_PDF, height=TAILLE_LOGO_PDF))
             elements.append(Spacer(1, 8))
 
     elements.append(Paragraph(f"<b>{params.nom_entreprise or 'KBTO'}</b>", styles["Title"]))
@@ -1202,20 +1350,25 @@ def generer_pdf_facture(facture):
     return tampon
 
 
-@app.route("/factures/<int:id>/pdf")
-@login_required
-def facture_pdf(id):
-    facture = db.session.get(Facture, id)
-    if facture is None:
-        flash("Facture introuvable.", "danger")
-        return redirect(url_for("liste_factures"))
-
+def envoyer_pdf_facture(facture):
+    """Reponse Flask de telechargement du PDF d'une facture (factorise
+    l'appel identique fait cote personnel et cote portail client)."""
     return send_file(
         generer_pdf_facture(facture),
         mimetype="application/pdf",
         as_attachment=True,
         download_name=f"{facture.numero}.pdf",
     )
+
+
+@app.route("/factures/<int:id>/pdf")
+@login_required
+def facture_pdf(id):
+    facture, reponse = obtenir_facture_ou_rediriger(id)
+    if reponse:
+        return reponse
+
+    return envoyer_pdf_facture(facture)
 
 
 # ==========================
@@ -1267,13 +1420,15 @@ def portail_tableau_de_bord():
     nb_commandes = len(commandes)
     montant_total = sum((c.total or Decimal("0")) for c in commandes)
     nb_en_cours = sum(1 for c in commandes if c.statut == "attente")
+    nb_impayees = sum(1 for c in commandes if c.statut != "annulee" and c.montant_restant > 0)
 
     return render_template(
         "portail_dashboard.html",
         nb_commandes=nb_commandes,
         montant_total=montant_total,
         nb_en_cours=nb_en_cours,
-        dernieres_commandes=commandes[:5],
+        nb_impayees=nb_impayees,
+        dernieres_commandes=commandes[:NB_ELEMENTS_TABLEAU_DE_BORD],
     )
 
 
@@ -1362,28 +1517,31 @@ def portail_factures():
     )
 
 
-@app.route("/portail/factures/<int:id>")
-@login_required
-def portail_detail_facture(id):
+def obtenir_facture_client_ou_404(id):
+    """Recupere une facture appartenant au client connecte, ou leve un 404.
+    Facture inexistante et facture d'un autre client renvoient volontairement
+    la meme erreur 404 (jamais un message explicite), pour ne pas laisser un
+    client deviner quelles factures existent chez d'autres clients. Factorise
+    un motif identique repete sur toutes les routes du portail qui operent
+    sur une facture existante."""
     facture = db.session.get(Facture, id)
     if facture is None or facture.client_id != current_user.id:
         abort(404)
+    return facture
+
+
+@app.route("/portail/factures/<int:id>")
+@login_required
+def portail_detail_facture(id):
+    facture = obtenir_facture_client_ou_404(id)
     return render_template("portail_facture_detail.html", facture=facture, cle_stripe_configuree=bool(STRIPE_SECRET_KEY))
 
 
 @app.route("/portail/factures/<int:id>/pdf")
 @login_required
 def portail_facture_pdf(id):
-    facture = db.session.get(Facture, id)
-    if facture is None or facture.client_id != current_user.id:
-        abort(404)
-
-    return send_file(
-        generer_pdf_facture(facture),
-        mimetype="application/pdf",
-        as_attachment=True,
-        download_name=f"{facture.numero}.pdf",
-    )
+    facture = obtenir_facture_client_ou_404(id)
+    return envoyer_pdf_facture(facture)
 
 
 def contexte_impression_facture(facture):
@@ -1404,19 +1562,16 @@ def contexte_impression_facture(facture):
 @app.route("/factures/<int:id>/imprimer")
 @login_required
 def facture_imprimer(id):
-    facture = db.session.get(Facture, id)
-    if facture is None:
-        flash("Facture introuvable.", "danger")
-        return redirect(url_for("liste_factures"))
+    facture, reponse = obtenir_facture_ou_rediriger(id)
+    if reponse:
+        return reponse
     return render_template("facture_imprimer.html", **contexte_impression_facture(facture))
 
 
 @app.route("/portail/factures/<int:id>/imprimer")
 @login_required
 def portail_facture_imprimer(id):
-    facture = db.session.get(Facture, id)
-    if facture is None or facture.client_id != current_user.id:
-        abort(404)
+    facture = obtenir_facture_client_ou_404(id)
     return render_template("facture_imprimer.html", **contexte_impression_facture(facture))
 
 
@@ -1444,9 +1599,7 @@ def portail_paiements():
 @app.route("/portail/paiements/payer/<int:id>", methods=["POST"])
 @login_required
 def portail_payer_facture(id):
-    facture = db.session.get(Facture, id)
-    if facture is None or facture.client_id != current_user.id:
-        abort(404)
+    facture = obtenir_facture_client_ou_404(id)
 
     if facture.montant_restant <= 0:
         flash("Cette facture est déjà payée.", "info")
@@ -1459,7 +1612,7 @@ def portail_payer_facture(id):
         )
         return redirect(url_for("portail_paiements"))
 
-    montant_centimes = int(facture.montant_restant * 100)
+    montant_centimes = int(facture.montant_restant * CENTIMES_PAR_DH)
 
     session_stripe = stripe.checkout.Session.create(
         mode="payment",
@@ -1483,19 +1636,39 @@ def portail_payer_facture(id):
 @app.route("/portail/paiements/succes/<int:id>")
 @login_required
 def portail_paiement_succes(id):
-    facture = db.session.get(Facture, id)
-    if facture is None or facture.client_id != current_user.id:
-        abort(404)
+    facture = obtenir_facture_client_ou_404(id)
 
     session_id = request.args.get("session_id")
     if session_id and STRIPE_SECRET_KEY:
-        deja_enregistre = Paiement.query.filter_by(facture_id=facture.id, reference=session_id).first()
+        # L'unicite de la reference Stripe est verifiee GLOBALEMENT (et non
+        # plus seulement pour cette facture) : un session_id Stripe reel et
+        # "paid" ne doit jamais pouvoir etre credite plus d'une fois, meme sur
+        # des factures differentes appartenant au meme client (rejeu).
+        deja_enregistre = Paiement.query.filter_by(reference=session_id, methode="en_ligne").first()
         if deja_enregistre:
-            flash(f"Paiement de la facture {facture.numero} déjà confirmé. Merci !", "success")
+            if deja_enregistre.facture_id == facture.id:
+                flash(f"Paiement de la facture {facture.numero} déjà confirmé. Merci !", "success")
+            else:
+                flash(
+                    "Cette session de paiement a déjà été utilisée pour une autre facture.",
+                    "danger",
+                )
         else:
             session_stripe = stripe.checkout.Session.retrieve(session_id)
-            if session_stripe.payment_status == "paid":
-                montant = Decimal(str(session_stripe.amount_total)) / Decimal("100")
+            # La session Stripe est creee avec metadata={"facture_id": ...} au
+            # moment du paiement (cf. portail_payer_facture) : on verifie ici
+            # qu'elle correspond bien a la facture demandee dans l'URL, sinon
+            # un client pourrait payer une facture A puis rejouer le meme
+            # session_id "paid" sur une facture B pour la faire crediter sans
+            # paiement reel correspondant.
+            facture_id_attendu = (session_stripe.metadata or {}).get("facture_id")
+            if facture_id_attendu != str(facture.id):
+                flash(
+                    "Cette session de paiement ne correspond pas à cette facture.",
+                    "danger",
+                )
+            elif session_stripe.payment_status == "paid":
+                montant = Decimal(str(session_stripe.amount_total)) / Decimal(str(CENTIMES_PAR_DH))
                 enregistrer_paiement(facture, montant, "en_ligne", session_id)
                 flash(f"Paiement de la facture {facture.numero} confirmé. Merci !", "success")
             else:
@@ -1507,9 +1680,7 @@ def portail_paiement_succes(id):
 @app.route("/portail/paiements/annule/<int:id>")
 @login_required
 def portail_paiement_annule(id):
-    facture = db.session.get(Facture, id)
-    if facture is None or facture.client_id != current_user.id:
-        abort(404)
+    facture = obtenir_facture_client_ou_404(id)
     flash("Paiement annulé.", "info")
     return redirect(url_for("portail_paiements"))
 
@@ -1544,5 +1715,177 @@ def portail_profil():
     return render_template("portail_profil.html", form=form)
 
 
+# ==========================================================
+# ASSISTANT DU PORTAIL CLIENT (FAQ locale a base de mots-cles)
+# ==========================================================
+# Aucun appel a une API externe : le moteur cherche un mot-cle dans le
+# message et renvoie la reponse associee, construite a partir des vraies
+# donnees de l'entreprise (catalogue, coordonnees). Gratuit et illimite,
+# mais limite aux sujets prevus ci-dessous -- contrairement a une IA
+# generative, il ne comprend pas les questions formulees autrement.
+LONGUEUR_MAX_MESSAGE_CHATBOT = 500
+
+# Anti-abus (protection basique contre le spam, meme structure que le
+# verrouillage anti brute-force de /connexion plus haut) : scope par client
+# connecte plutot que par identifiant de connexion.
+LIMITE_MESSAGES_CHATBOT = 20
+FENETRE_CHATBOT = timedelta(minutes=10)
+_messages_chatbot_par_client = {}
+
+
+def _chatbot_est_limite(client_id):
+    entree = _messages_chatbot_par_client.get(client_id)
+    if entree is None:
+        return False
+    nb_messages, premier_message = entree
+    if datetime.now(timezone.utc) - premier_message > FENETRE_CHATBOT:
+        _messages_chatbot_par_client.pop(client_id, None)
+        return False
+    return nb_messages >= LIMITE_MESSAGES_CHATBOT
+
+
+def _enregistrer_message_chatbot(client_id):
+    maintenant = datetime.now(timezone.utc)
+    entree = _messages_chatbot_par_client.get(client_id)
+    if entree is None or maintenant - entree[1] > FENETRE_CHATBOT:
+        _messages_chatbot_par_client[client_id] = (1, maintenant)
+    else:
+        _messages_chatbot_par_client[client_id] = (entree[0] + 1, entree[1])
+
+
+REPONSE_CHATBOT_PAR_DEFAUT = (
+    "Désolé, je n'ai pas compris votre question. Voici les sujets que je "
+    "connais : tarifs, prestations, paiement, commandes, factures, contact."
+)
+
+
+def _entrees_faq_chatbot():
+    """Construit les entrees de la FAQ a partir des vraies donnees de
+    l'entreprise (catalogue, coordonnees) : uniquement des informations
+    generales et publiques, jamais des donnees personnelles de client."""
+    params = Parametres.obtenir()
+    produits = Produit.query.all()
+    categories = sorted({p.categorie for p in produits if p.categorie})
+    prix = [p.prix for p in produits if p.prix is not None]
+    fourchette_prix = (
+        f"de {min(prix):.0f} DH à {max(prix):.0f} DH selon la prestation"
+        if prix else "détaillés dans notre catalogue"
+    )
+    liste_categories = ", ".join(categories) if categories else (
+        "comptabilité, fiscalité, social et paie, conseil aux entreprises"
+    )
+
+    return [
+        {
+            "mots_cles": ["bonjour", "salut", "bonsoir", "hello", "coucou"],
+            "reponse": (
+                "Bonjour ! Je peux répondre à vos questions sur nos tarifs, nos "
+                "prestations, le paiement, les commandes ou nos coordonnées."
+            ),
+        },
+        {
+            "mots_cles": ["merci", "parfait", "super"],
+            "reponse": "Avec plaisir ! N'hésitez pas si vous avez d'autres questions.",
+        },
+        {
+            # "combien" seul est trop generique (declenche sur "combien de
+            # temps", "combien pese"...) : on ne le garde que combine avec
+            # une notion de cout.
+            "mots_cles": [
+                "tarif", "prix", "coute", "coûte", "cout", "coût",
+                "combien ça coûte", "combien ca coute", "combien coûte", "combien coute",
+            ],
+            "reponse": (
+                f"Nos tarifs varient {fourchette_prix}. Vous trouverez le détail "
+                "complet et à jour dans l'onglet Catalogue."
+            ),
+        },
+        {
+            "mots_cles": ["service", "prestation", "catalogue", "propose", "offre", "offrez"],
+            "reponse": (
+                f"Nous proposons des prestations en {liste_categories}. Le détail "
+                "complet est disponible dans l'onglet Catalogue."
+            ),
+        },
+        {
+            "mots_cles": [
+                "paiement", "payer", "regler", "régler",
+                "cheque", "chèque", "espece", "espèce", "carte",
+            ],
+            "reponse": (
+                "Vous pouvez régler par chèque ou en espèces en choisissant votre "
+                "mode de paiement lors de votre commande. Le paiement par carte "
+                "bancaire n'est pas encore disponible en ligne. L'historique de vos "
+                "règlements est visible dans l'onglet Paiements."
+            ),
+        },
+        {
+            "mots_cles": ["commande", "commander", "reserver", "réserver"],
+            "reponse": (
+                "Pour passer une commande, rendez-vous dans l'onglet Commandes > "
+                "Nouvelle commande, sélectionnez les prestations souhaitées et "
+                "choisissez votre mode de paiement."
+            ),
+        },
+        {
+            "mots_cles": ["facture", "recu", "reçu"],
+            "reponse": (
+                "Vous pouvez consulter, télécharger ou imprimer vos factures depuis "
+                "l'onglet Factures de votre espace client."
+            ),
+        },
+        {
+            "mots_cles": [
+                "contact", "telephone", "téléphone", "email",
+                "adresse", "joindre", "horaire",
+            ],
+            "reponse": (
+                f"Vous pouvez nous contacter au "
+                f"{params.telephone or 'numéro indiqué sur notre site'}, par email à "
+                f"{params.email or 'notre adresse de contact'}, ou à notre adresse : "
+                f"{params.adresse or 'voir nos coordonnées'}."
+            ),
+        },
+    ]
+
+
+def repondre_chatbot_faq(message_utilisateur):
+    """Cherche la premiere entree de la FAQ dont un mot-cle apparait dans le
+    message (normalise en minuscules), ou renvoie un message de secours si
+    aucune entree ne correspond."""
+    message_normalise = message_utilisateur.lower()
+    for entree in _entrees_faq_chatbot():
+        if any(mot in message_normalise for mot in entree["mots_cles"]):
+            return entree["reponse"]
+    return REPONSE_CHATBOT_PAR_DEFAUT
+
+
+@app.route("/portail/assistant/message", methods=["POST"])
+@login_required
+def portail_assistant_message():
+    if _chatbot_est_limite(current_user.id):
+        return jsonify({
+            "reponse": "Vous avez envoyé beaucoup de messages récemment. Merci de "
+                       "patienter quelques minutes avant de continuer la conversation.",
+        })
+
+    donnees = request.get_json(silent=True) or {}
+    message_utilisateur = (donnees.get("message") or "").strip()
+    if not message_utilisateur:
+        return jsonify({"erreur": "Message vide."}), 400
+    message_utilisateur = message_utilisateur[:LONGUEUR_MAX_MESSAGE_CHATBOT]
+
+    _enregistrer_message_chatbot(current_user.id)
+
+    return jsonify({"reponse": repondre_chatbot_faq(message_utilisateur)})
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Mode debug desactive par defaut (fail-safe) : le debogueur Werkzeug
+    # permet l'execution de code arbitraire (RCE) et affiche le code source
+    # et les variables d'environnement dans les tracebacks s'il est expose
+    # publiquement. Pour le developpement local, ajouter FLASK_DEBUG=1 dans
+    # .env. Rappel (voir README) : `python app.py` est un serveur de
+    # developpement, jamais a utiliser tel quel en production (serveur WSGI
+    # requis, ex. gunicorn/waitress).
+    app.run(debug=os.getenv("FLASK_DEBUG", "0") == "1")

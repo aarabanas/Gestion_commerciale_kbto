@@ -8,6 +8,7 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
 import pytest
 
+import app as app_module
 from app import app as flask_app
 from models import Client, Facture, Produit, Utilisateur, db
 
@@ -25,6 +26,13 @@ def app():
             "les tests ne doivent jamais tourner sur le fichier de base reel"
         )
         db.create_all()
+        # Le compteur anti brute-force de /connexion vit en memoire de
+        # processus (cf. app.py) : le reinitialiser avant chaque test evite
+        # qu'un test qui enchaine des echecs de connexion sur un identifiant
+        # ne fasse "deborder" un verrouillage sur un autre test independant.
+        app_module._tentatives_echouees_connexion.clear()
+        # Meme principe pour le compteur anti-abus du chatbot du portail.
+        app_module._messages_chatbot_par_client.clear()
         yield flask_app
         db.session.remove()
         db.drop_all()

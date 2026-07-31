@@ -1,67 +1,85 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Prestations{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>📦 Produits</h1>
-        <p>Gérez votre catalogue et votre stock.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('ajouter_produit') }}" class="btn btn-primary">
-        <i class="fa-solid fa-plus"></i> Nouveau produit
+        <i class="fa-solid fa-plus"></i> Ajouter
     </a>
 </div>
 
-<div class="section">
+{% set categories = [] %}
+{% for p in produits %}
+    {% if p.categorie and p.categorie not in categories %}
+        {% set _ = categories.append(p.categorie) %}
+    {% endif %}
+{% endfor %}
 
-    <div class="section-header">
-        <h2>Liste des produits</h2>
-    </div>
-
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Nom</th>
-                <th>Catégorie</th>
-                <th>Prix</th>
-                <th>Quantité</th>
-                <th>Description</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for produit in produits %}
-            <tr>
-                <td>{{ produit.nom }}</td>
-                <td>{{ produit.categorie or "—" }}</td>
-                <td>{{ "%.2f"|format(produit.prix) }} DH</td>
-                <td>
-                    {{ produit.quantite }}
-                    {% if produit.quantite == 0 %}
-                        <span class="badge annulee">Rupture</span>
-                    {% endif %}
-                </td>
-                <td>{{ produit.description or "—" }}</td>
-                <td>
-                    <a href="{{ url_for('modifier_produit', id=produit.id) }}" class="btn btn-warning">Modifier</a>
-                    {% if current_user.role == 'administrateur' %}
-                    <form method="POST" action="{{ url_for('supprimer_produit', id=produit.id) }}"
-                          style="display:inline"
-                          onsubmit="return confirm('Supprimer ce produit ?')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="6" class="empty">Aucun produit enregistré.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-
+<div class="pill-tabs" id="pills-categorie">
+    <button type="button" class="pill-tab actif" data-cat="tous">Tous</button>
+    {% for cat in categories %}
+    <button type="button" class="pill-tab" data-cat="{{ cat }}">{{ cat }}</button>
+    {% endfor %}
 </div>
+
+{% if produits %}
+<div class="produits-grid" id="grille-produits">
+    {% for produit in produits %}
+    <div class="produit-card" data-categorie="{{ produit.categorie or '' }}">
+        <div class="entete-carte">
+            <span class="badge neutre">{{ produit.categorie or "Autre" }}</span>
+            {% if produit.quantite == 0 %}
+                <span class="badge annulee">Rupture</span>
+            {% elif produit.quantite <= 5 %}
+                <span class="badge attente">Stock faible</span>
+            {% else %}
+                <span class="badge payee">Disponible</span>
+            {% endif %}
+        </div>
+        <h3>{{ produit.nom }}</h3>
+        <p class="description">{{ produit.description or "Aucune description." }}</p>
+        <div class="pied-carte">
+            <div class="prix">
+                <small>Tarif unitaire</small>
+                <strong>{{ "%.2f"|format(produit.prix) }} DH</strong>
+            </div>
+            <div class="icon-actions">
+                <a href="{{ url_for('modifier_produit', id=produit.id) }}" class="icon-btn edit" title="Modifier"><i class="fa-solid fa-pen"></i></a>
+                {% if current_user.role == 'administrateur' %}
+                <form method="POST" action="{{ url_for('supprimer_produit', id=produit.id) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('Supprimer ce produit ?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="icon-btn delete" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="section"><p class="empty">Aucun produit enregistré.</p></div>
+{% endif %}
+
+<script>
+    (function () {
+        var pills = document.querySelectorAll('#pills-categorie .pill-tab');
+        var cartes = document.querySelectorAll('#grille-produits .produit-card');
+        pills.forEach(function (pill) {
+            pill.addEventListener('click', function () {
+                pills.forEach(function (p) { p.classList.remove('actif'); });
+                pill.classList.add('actif');
+                var cat = pill.getAttribute('data-cat');
+                cartes.forEach(function (carte) {
+                    carte.style.display = (cat === 'tous' || carte.getAttribute('data-categorie') === cat) ? '' : 'none';
+                });
+            });
+        });
+    })();
+</script>
 
 {% endblock %}

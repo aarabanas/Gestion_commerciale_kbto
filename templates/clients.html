@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 
+{% block titre_page %}Clients{% endblock %}
+
 {% block contenu %}
 
 <div class="page-header">
-    <div>
-        <h1>👥 Clients</h1>
-        <p>Gérez votre portefeuille clients.</p>
-    </div>
+    <div></div>
     <a href="{{ url_for('ajouter_client') }}" class="btn btn-primary">
-        <i class="fa-solid fa-plus"></i> Nouveau client
+        <i class="fa-solid fa-plus"></i> Ajouter un client
     </a>
 </div>
 
@@ -32,30 +31,37 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Email</th>
+                <th>Nom / Raison sociale</th>
+                <th>Adresse e-mail</th>
                 <th>Téléphone</th>
+                <th>Adresse</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
         {% for client in clients %}
             <tr>
-                <td>{{ client.nom }}</td>
-                <td>{{ client.prenom }}</td>
+                <td>
+                    <div class="cellule-nom">
+                        <div class="avatar-badge c{{ loop.index0 % 5 }}">{{ (client.nom[0] ~ client.prenom[0])|upper }}</div>
+                        <span class="principal">{{ client.nom }} {{ client.prenom }}</span>
+                    </div>
+                </td>
                 <td>{{ client.email or "—" }}</td>
                 <td>{{ client.telephone or "—" }}</td>
+                <td>{{ client.adresse or "—" }}</td>
                 <td>
-                    <a href="{{ url_for('modifier_client', id=client.id) }}" class="btn btn-warning">Modifier</a>
-                    {% if current_user.role == 'administrateur' %}
-                    <form method="POST" action="{{ url_for('supprimer_client', id=client.id) }}"
-                          style="display:inline"
-                          onsubmit="return confirm('Supprimer ce client ?')">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-danger">Supprimer</button>
-                    </form>
-                    {% endif %}
+                    <div class="icon-actions">
+                        <a href="{{ url_for('modifier_client', id=client.id) }}" class="icon-btn edit" title="Modifier"><i class="fa-solid fa-pen"></i></a>
+                        {% if current_user.role == 'administrateur' %}
+                        <form method="POST" action="{{ url_for('supprimer_client', id=client.id) }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Supprimer ce client ?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="icon-btn delete" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
                 </td>
             </tr>
         {% else %}

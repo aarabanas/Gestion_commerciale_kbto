@@ -1,9 +1,13 @@
+import logging
 import os
+import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
 from io import BytesIO
+from pathlib import Path
 
+import anthropic
 import click
 import graphiques
 import stripe
@@ -71,9 +75,28 @@ from models import (
     db,
 )
 
-load_dotenv()
+# Chemin explicite (plutot que la recherche par defaut a partir du
+# repertoire courant) : le Planificateur de taches Windows demarre les
+# processus avec un repertoire de travail different de celui du projet, ce
+# qui ferait echouer silencieusement le chargement de .env.
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = Flask(__name__)
+
+# Journalisation des erreurs serveur dans un fichier : FLASK_DEBUG=0 (obligatoire
+# des que l'app est accessible par d'autres, voir plus bas) supprime les traces
+# affichees au navigateur -- sans ceci, une erreur 500 ne laisserait absolument
+# aucune trace exploitable, y compris lancee en tache de fond (Planificateur de
+# taches) ou la sortie standard n'est pas consultee.
+_dossier_logs = Path(__file__).resolve().parent / "logs"
+_dossier_logs.mkdir(exist_ok=True)
+_gestionnaire_erreurs = logging.FileHandler(_dossier_logs / "erreurs.log", encoding="utf-8")
+_gestionnaire_erreurs.setLevel(logging.ERROR)
+_gestionnaire_erreurs.setFormatter(logging.Formatter(
+    "%(asctime)s [%(levelname)s] %(message)s"
+))
+app.logger.addHandler(_gestionnaire_erreurs)
+app.logger.setLevel(logging.ERROR)
 
 # Valeur de repli utilisee uniquement en developpement local (jamais commitee
 # comme vraie cle secrete). Si elle est encore active en production, les
@@ -119,6 +142,13 @@ if MODE_PRODUCTION and app.config["SECRET_KEY"] == CLE_SECRETE_PAR_DEFAUT:
 # le paiement en ligne affiche un message explicite au lieu de planter.
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 stripe.api_key = STRIPE_SECRET_KEY
+
+# Cle API Claude (Anthropic), utilisee uniquement pour le texte libre tape
+# dans l'assistant du portail client (les boutons du menu restent gratuits,
+# voir plus bas). Tant qu'elle n'est pas fournie via .env, le texte libre
+# retombe sur le moteur de mots-cles gratuit au lieu de planter.
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+client_anthropic = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 # Connexion Google / GitHub (OAuth). Tant que les cles ne sont pas fournies
 # via .env, les boutons affichent un message explicite au lieu de planter.
@@ -422,7 +452,10 @@ def variation_pourcentage(actuel, precedent):
 
 @app.context_processor
 def injecter_globales():
-    return {"current_year": date.today().year}
+    return {
+        "current_year": date.today().year,
+        "menu_principal_chatbot": MENU_PRINCIPAL_CHATBOT,
+    }
 
 
 @app.context_processor
@@ -469,6 +502,15 @@ def injecter_notifications():
     return {"notifications": alertes, "nb_notifications": len(alertes)}
 
 
+def _mois_sql(colonne):
+    """Extrait 'AAAA-MM' d'une colonne date en SQL, compatible SQLite (dev/tests)
+    et MySQL (deploiement reseau) : strftime() n'existe qu'en SQLite, MySQL
+    utilise DATE_FORMAT() avec une syntaxe de motif differente."""
+    if db.engine.dialect.name == "mysql":
+        return db.func.date_format(colonne, "%Y-%m")
+    return db.func.strftime("%Y-%m", colonne)
+
+
 @app.route("/tableau-de-bord")
 @login_required
 def tableau_de_bord():
@@ -488,7 +530,7 @@ def tableau_de_bord():
 
     # --- Evolution du CA (6 derniers mois avec des factures) ---
     lignes_mois = db.session.query(
-        db.func.strftime("%Y-%m", Facture.date).label("mois"),
+        _mois_sql(Facture.date).label("mois"),
         db.func.sum(Facture.total).label("total"),
     ).group_by("mois").order_by("mois").all()
     lignes_mois = lignes_mois[-6:]
@@ -1061,12 +1103,12 @@ def rapports():
     nb_factures = Facture.query.count()
 
     lignes_facture = db.session.query(
-        db.func.strftime("%Y-%m", Facture.date).label("mois"),
+        _mois_sql(Facture.date).label("mois"),
         db.func.sum(Facture.total).label("total"),
     ).group_by("mois").order_by("mois").all()
 
     lignes_payee = db.session.query(
-        db.func.strftime("%Y-%m", Facture.date).label("mois"),
+        _mois_sql(Facture.date).label("mois"),
         db.func.sum(Facture.total).label("total"),
     ).filter(Facture.statut == "payee").group_by("mois").order_by("mois").all()
 
@@ -1718,10 +1760,11 @@ def portail_profil():
 # ==========================================================
 # ASSISTANT DU PORTAIL CLIENT (FAQ locale a base de mots-cles)
 # ==========================================================
-# Aucun appel a une API externe : le moteur cherche un mot-cle dans le
-# message et renvoie la reponse associee, construite a partir des vraies
-# donnees de l'entreprise (catalogue, coordonnees). Gratuit et illimite,
-# mais limite aux sujets prevus ci-dessous -- contrairement a une IA
+# Moteur gratuit et illimite, utilise pour les boutons du menu (toujours) et
+# pour le texte libre quand l'IA n'est pas configuree (voir plus bas) : il
+# cherche un mot-cle dans le message et renvoie la reponse associee,
+# construite a partir des vraies donnees de l'entreprise (catalogue,
+# coordonnees). Limite aux sujets prevus ci-dessous -- contrairement a une IA
 # generative, il ne comprend pas les questions formulees autrement.
 LONGUEUR_MAX_MESSAGE_CHATBOT = 500
 
@@ -1755,14 +1798,27 @@ def _enregistrer_message_chatbot(client_id):
 
 REPONSE_CHATBOT_PAR_DEFAUT = (
     "Désolé, je n'ai pas compris votre question. Voici les sujets que je "
-    "connais : tarifs, prestations, paiement, commandes, factures, contact."
+    "connais : tarifs, prestations (comptabilité, fiscalité, paie, conseil), "
+    "paiement, commandes, factures, votre compte, contact."
 )
+
+
+def _normaliser_texte_chatbot(texte):
+    """Minuscules + accents retires, pour que les mots-cles n'aient besoin
+    d'etre ecrits qu'une seule fois (sans accent) tout en reconnaissant aussi
+    bien "regler", "régler" que "règler" -- evite la classe de bug rencontree
+    plus tot (mot-cle mal accentue qui ne matchait jamais)."""
+    texte = texte.lower()
+    texte = unicodedata.normalize("NFKD", texte)
+    return "".join(c for c in texte if not unicodedata.combining(c))
 
 
 def _entrees_faq_chatbot():
     """Construit les entrees de la FAQ a partir des vraies donnees de
     l'entreprise (catalogue, coordonnees) : uniquement des informations
-    generales et publiques, jamais des donnees personnelles de client."""
+    generales et publiques, jamais des donnees personnelles de client. Les
+    mots-cles sont ecrits sans accent (voir _normaliser_texte_chatbot) : pas
+    besoin de doublons accentues/non-accentues."""
     params = Parametres.obtenir()
     produits = Produit.query.all()
     categories = sorted({p.categorie for p in produits if p.categorie})
@@ -1777,23 +1833,36 @@ def _entrees_faq_chatbot():
 
     return [
         {
-            "mots_cles": ["bonjour", "salut", "bonsoir", "hello", "coucou"],
+            "id": "bonjour",
+            "mots_cles": ["bonjour", "salut", "bonsoir", "hello", "coucou", "bjr", "slt"],
             "reponse": (
                 "Bonjour ! Je peux répondre à vos questions sur nos tarifs, nos "
-                "prestations, le paiement, les commandes ou nos coordonnées."
+                "prestations, le paiement, les commandes, vos factures ou nos "
+                "coordonnées."
             ),
         },
         {
-            "mots_cles": ["merci", "parfait", "super"],
+            "id": "merci",
+            "mots_cles": ["merci", "parfait", "super", "top", "au revoir", "bonne journee", "bye"],
             "reponse": "Avec plaisir ! N'hésitez pas si vous avez d'autres questions.",
         },
         {
+            "id": "apropos",
+            "mots_cles": ["kbto", "qui etes vous", "qui es tu", "presentation", "a propos", "c'est quoi kbto"],
+            "reponse": (
+                f"{params.nom_entreprise or 'KBTO'} est un cabinet comptable agréé "
+                f"basé à {params.adresse or 'Rabat, Maroc'}, spécialisé en "
+                f"{liste_categories}."
+            ),
+        },
+        {
+            "id": "tarifs",
             # "combien" seul est trop generique (declenche sur "combien de
             # temps", "combien pese"...) : on ne le garde que combine avec
-            # une notion de cout.
+            # une notion de cout, ou avec les autres mots-cles de prix.
             "mots_cles": [
-                "tarif", "prix", "coute", "coûte", "cout", "coût",
-                "combien ça coûte", "combien ca coute", "combien coûte", "combien coute",
+                "tarif", "prix", "coute", "cout", "montant", "devis", "budget",
+                "combien ca coute", "combien coute",
             ],
             "reponse": (
                 f"Nos tarifs varient {fourchette_prix}. Vous trouverez le détail "
@@ -1801,16 +1870,57 @@ def _entrees_faq_chatbot():
             ),
         },
         {
-            "mots_cles": ["service", "prestation", "catalogue", "propose", "offre", "offrez"],
+            "id": "prestations",
+            "mots_cles": [
+                "service", "prestation", "catalogue", "propose", "offre", "offrez",
+                "activite", "domaine", "specialite", "expertise",
+            ],
             "reponse": (
                 f"Nous proposons des prestations en {liste_categories}. Le détail "
                 "complet est disponible dans l'onglet Catalogue."
             ),
         },
         {
+            "id": "comptabilite",
+            "mots_cles": ["comptabilite", "comptable", "bilan", "tenue de comptes", "compte annuel"],
+            "reponse": (
+                "Nous assurons la tenue de comptabilité et l'établissement du bilan "
+                "annuel. Les tarifs et détails sont dans l'onglet Catalogue, "
+                "catégorie Comptabilité."
+            ),
+        },
+        {
+            "id": "fiscalite",
+            "mots_cles": ["fiscal", "fiscalite", "impot", "declaration fiscale", "tva"],
+            "reponse": (
+                "Nous accompagnons nos clients sur leurs obligations fiscales "
+                "(déclarations, TVA...). Voir le détail dans l'onglet Catalogue, "
+                "catégorie Fiscalité."
+            ),
+        },
+        {
+            "id": "paie",
+            "mots_cles": ["paie", "bulletin", "salaire", "cnss", "social et paie"],
+            "reponse": (
+                "Nous gérons les bulletins de paie et les déclarations sociales "
+                "(CNSS). Voir le détail dans l'onglet Catalogue, catégorie Social "
+                "et paie."
+            ),
+        },
+        {
+            "id": "conseil",
+            "mots_cles": ["conseil", "creation d'entreprise", "creation de societe", "constitution", "audit"],
+            "reponse": (
+                "Nous proposons aussi du conseil aux entreprises (création de "
+                "société, audit...). Voir le détail dans l'onglet Catalogue, "
+                "catégorie Conseil aux entreprises."
+            ),
+        },
+        {
+            "id": "paiement",
             "mots_cles": [
-                "paiement", "payer", "regler", "régler",
-                "cheque", "chèque", "espece", "espèce", "carte",
+                "paiement", "payer", "regler", "reglement",
+                "cheque", "espece", "carte bancaire", "mode de paiement", "moyen de paiement",
             ],
             "reponse": (
                 "Vous pouvez régler par chèque ou en espèces en choisissant votre "
@@ -1820,7 +1930,8 @@ def _entrees_faq_chatbot():
             ),
         },
         {
-            "mots_cles": ["commande", "commander", "reserver", "réserver"],
+            "id": "commande",
+            "mots_cles": ["commande", "commander", "reserver", "passer commande"],
             "reponse": (
                 "Pour passer une commande, rendez-vous dans l'onglet Commandes > "
                 "Nouvelle commande, sélectionnez les prestations souhaitées et "
@@ -1828,36 +1939,154 @@ def _entrees_faq_chatbot():
             ),
         },
         {
-            "mots_cles": ["facture", "recu", "reçu"],
+            "id": "facture",
+            "mots_cles": ["facture", "recu", "telecharger", "imprimer"],
             "reponse": (
                 "Vous pouvez consulter, télécharger ou imprimer vos factures depuis "
                 "l'onglet Factures de votre espace client."
             ),
         },
         {
+            "id": "compte",
             "mots_cles": [
-                "contact", "telephone", "téléphone", "email",
-                "adresse", "joindre", "horaire",
+                "mon compte", "mon profil", "mot de passe", "inscription",
+                "s'inscrire", "creer un compte", "identifiant",
+            ],
+            "reponse": (
+                "Vous pouvez modifier vos informations personnelles et votre mot de "
+                "passe depuis l'onglet Profil de votre espace client."
+            ),
+        },
+        {
+            "id": "delai",
+            "mots_cles": ["delai", "combien de temps", "duree"],
+            "reponse": (
+                "Les délais dépendent de la prestation demandée — contactez-nous "
+                "directement pour un délai précis sur votre besoin."
+            ),
+        },
+        {
+            "id": "contact",
+            "mots_cles": [
+                "contact", "telephone", "email", "mail",
+                "adresse", "joindre", "horaire", "ou etes vous", "localisation",
+                "ouvert", "ferme", "ouverture", "fermeture",
             ],
             "reponse": (
                 f"Vous pouvez nous contacter au "
                 f"{params.telephone or 'numéro indiqué sur notre site'}, par email à "
                 f"{params.email or 'notre adresse de contact'}, ou à notre adresse : "
                 f"{params.adresse or 'voir nos coordonnées'}."
+                + (f" Horaires d'ouverture : {params.horaires_ouverture}." if params.horaires_ouverture else "")
             ),
         },
     ]
 
 
+# Menu principal presente sous forme de boutons cliquables (comme les
+# chatbots des grands sites marchands) : contrairement au texte libre, un
+# clic sur un bouton renvoie TOUJOURS une reponse pertinente, puisque
+# l'utilisateur choisit parmi une liste fermee au lieu de taper une question
+# dont la formulation est imprevisible.
+MENU_PRINCIPAL_CHATBOT = [
+    {"id": "prestations", "libelle": "Nos prestations et tarifs"},
+    {"id": "commande", "libelle": "Passer ou suivre une commande"},
+    {"id": "paiement", "libelle": "Un moyen de paiement"},
+    {"id": "facture", "libelle": "Mes factures"},
+    {"id": "compte", "libelle": "Mon compte / profil"},
+    {"id": "contact", "libelle": "Nous contacter"},
+]
+
+
+def obtenir_reponse_faq_par_id(identifiant):
+    """Renvoie la reponse de l'entree FAQ dont l'id correspond (utilise pour
+    le menu a boutons), ou None si l'id est inconnu."""
+    for entree in _entrees_faq_chatbot():
+        if entree["id"] == identifiant:
+            return entree["reponse"]
+    return None
+
+
 def repondre_chatbot_faq(message_utilisateur):
     """Cherche la premiere entree de la FAQ dont un mot-cle apparait dans le
-    message (normalise en minuscules), ou renvoie un message de secours si
-    aucune entree ne correspond."""
-    message_normalise = message_utilisateur.lower()
+    message (les deux normalises via _normaliser_texte_chatbot), ou renvoie
+    un message de secours si aucune entree ne correspond."""
+    message_normalise = _normaliser_texte_chatbot(message_utilisateur)
     for entree in _entrees_faq_chatbot():
-        if any(mot in message_normalise for mot in entree["mots_cles"]):
+        mots_normalises = (_normaliser_texte_chatbot(mot) for mot in entree["mots_cles"])
+        if any(mot in message_normalise for mot in mots_normalises):
             return entree["reponse"]
     return REPONSE_CHATBOT_PAR_DEFAUT
+
+
+# ==========================================================
+# ASSISTANT DU PORTAIL CLIENT (IA, texte libre uniquement)
+# ==========================================================
+# Les boutons du menu restent entierement gratuits (voir plus haut, meme
+# reponse garantie sans appel externe). Seul le texte libre tape par le
+# client interroge l'API Claude, et uniquement si ANTHROPIC_API_KEY est
+# configuree -- sinon repli automatique sur repondre_chatbot_faq ci-dessus.
+MODELE_CHATBOT_IA = "claude-opus-5"
+JETONS_MAX_REPONSE_CHATBOT_IA = 400
+
+
+def construire_prompt_systeme_chatbot():
+    """Contexte transmis a l'IA : uniquement des informations generales et
+    publiques de l'entreprise (jamais de donnees personnelles de client --
+    portail_assistant_message ne transmet que ce prompt et le message tape,
+    jamais current_user ni aucune donnee de facturation)."""
+    params = Parametres.obtenir()
+    produits = Produit.query.all()
+    categories = sorted({p.categorie for p in produits if p.categorie})
+    lignes_catalogue = "\n".join(
+        f"- {p.nom} ({p.categorie}) : {p.prix:.0f} DH"
+        for p in produits if p.prix is not None
+    )
+    horaires = (
+        f"Horaires d'ouverture : {params.horaires_ouverture}.\n"
+        if params.horaires_ouverture else ""
+    )
+    return (
+        f"Tu es l'assistant virtuel de {params.nom_entreprise or 'KBTO'}, un "
+        f"cabinet comptable agréé basé à {params.adresse or 'Rabat, Maroc'}.\n"
+        f"{horaires}"
+        f"Téléphone : {params.telephone or 'non communiqué'}. "
+        f"Email : {params.email or 'non communiqué'}.\n"
+        "Prestations proposées : "
+        f"{', '.join(categories) or 'comptabilité, fiscalité, paie, conseil'}.\n"
+        f"Catalogue détaillé :\n{lignes_catalogue or 'voir onglet Catalogue'}\n\n"
+        "Consignes : réponds en français, de façon courte (3-4 phrases "
+        "maximum), professionnelle et utile. Tu ne connais aucune donnée "
+        "personnelle de client (factures, montants dus, historique...) : si "
+        "on te pose ce type de question, invite poliment la personne à "
+        "consulter l'onglet correspondant de son espace client (Factures, "
+        "Paiements, Commandes) ou à contacter le cabinet directement. Si une "
+        "question sort totalement du cadre d'un cabinet comptable, dis-le "
+        "simplement sans inventer de réponse."
+    )
+
+
+def repondre_chatbot_ia(message_utilisateur):
+    """Interroge l'API Claude pour le texte libre. Toute erreur (cle
+    invalide, quota depasse, panne reseau...) retombe silencieusement sur le
+    moteur de mots-cles gratuit : meme logique de degradation gracieuse que
+    Stripe/OAuth ailleurs dans l'application, pour ne jamais laisser le
+    client sans reponse."""
+    try:
+        reponse = client_anthropic.messages.create(
+            model=MODELE_CHATBOT_IA,
+            max_tokens=JETONS_MAX_REPONSE_CHATBOT_IA,
+            system=construire_prompt_systeme_chatbot(),
+            messages=[{"role": "user", "content": message_utilisateur}],
+        )
+    except Exception:
+        return repondre_chatbot_faq(message_utilisateur)
+
+    if reponse.stop_reason == "refusal":
+        return REPONSE_CHATBOT_PAR_DEFAUT
+
+    texte = "".join(bloc.text for bloc in reponse.content if bloc.type == "text").strip()
+    return texte or REPONSE_CHATBOT_PAR_DEFAUT
 
 
 @app.route("/portail/assistant/message", methods=["POST"])
@@ -1867,17 +2096,33 @@ def portail_assistant_message():
         return jsonify({
             "reponse": "Vous avez envoyé beaucoup de messages récemment. Merci de "
                        "patienter quelques minutes avant de continuer la conversation.",
+            "menu": MENU_PRINCIPAL_CHATBOT,
         })
 
     donnees = request.get_json(silent=True) or {}
+    option_id = (donnees.get("option_id") or "").strip()
     message_utilisateur = (donnees.get("message") or "").strip()
-    if not message_utilisateur:
+
+    if not option_id and not message_utilisateur:
         return jsonify({"erreur": "Message vide."}), 400
-    message_utilisateur = message_utilisateur[:LONGUEUR_MAX_MESSAGE_CHATBOT]
 
     _enregistrer_message_chatbot(current_user.id)
 
-    return jsonify({"reponse": repondre_chatbot_faq(message_utilisateur)})
+    if option_id:
+        # Clic sur un bouton du menu : reponse garantie, on ne passe pas par
+        # la recherche de mots-cles (pas d'ambiguite possible).
+        texte = obtenir_reponse_faq_par_id(option_id) or REPONSE_CHATBOT_PAR_DEFAUT
+    else:
+        message_utilisateur = message_utilisateur[:LONGUEUR_MAX_MESSAGE_CHATBOT]
+        if client_anthropic:
+            texte = repondre_chatbot_ia(message_utilisateur)
+        else:
+            texte = repondre_chatbot_faq(message_utilisateur)
+
+    # Le menu est toujours renvoye, pour que l'utilisateur puisse continuer a
+    # naviguer par boutons apres chaque reponse (comme les chatbots des
+    # grands sites marchands).
+    return jsonify({"reponse": texte, "menu": MENU_PRINCIPAL_CHATBOT})
 
 
 if __name__ == "__main__":

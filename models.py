@@ -227,6 +227,7 @@ class Parametres(db.Model):
     taux_tva = db.Column(db.Float, default=TAUX_TVA_DEFAUT)
     logo = db.Column(db.String(255))
     objectif_ca_mensuel = db.Column(db.Numeric(10, 2), default=OBJECTIF_CA_MENSUEL_DEFAUT)
+    horaires_ouverture = db.Column(db.String(255))
 
     @staticmethod
     def obtenir():

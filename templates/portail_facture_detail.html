@@ -31,9 +31,9 @@
         <div class="principal" style="font-size:22px; color:var(--accent-dark);">{{ "%.2f"|format(facture.montant_paye) }} DH</div>
     </div>
 
-    <div class="meta-card" style="{{ 'border-color:#F3C9C7; background:var(--danger-soft);' if facture.montant_restant > 0 }}">
+    <div class="meta-card{{ ' meta-card-alerte' if facture.montant_restant > 0 }}">
         <div class="titre">Solde restant</div>
-        <div class="principal" style="font-size:22px; color:{{ 'var(--danger)' if facture.montant_restant > 0 else 'var(--ink)' }};">{{ "%.2f"|format(facture.montant_restant) }} DH</div>
+        <div class="principal{{ ' montant-alerte' if facture.montant_restant > 0 }}" style="font-size:22px;">{{ "%.2f"|format(facture.montant_restant) }} DH</div>
         {% if facture.statut != 'payee' and facture.montant_restant > 0 %}
             {% if cle_stripe_configuree %}
             <form method="POST" action="{{ url_for('portail_payer_facture', id=facture.id) }}" style="margin-top:10px;">

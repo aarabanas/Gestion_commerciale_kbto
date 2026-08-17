@@ -9,3 +9,4 @@ static/uploads/
 *.db
 .pytest_cache/
 .claude/
+logs/

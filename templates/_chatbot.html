@@ -6,7 +6,7 @@
     <div class="chatbot-entete">
         <div>
             <strong>Assistant KBTO</strong>
-            <small>Questions générales sur le cabinet</small>
+            <small>Réponse instantanée</small>
         </div>
         <button type="button" class="chatbot-fermer" onclick="basculerChatbot()" aria-label="Fermer">
             <i class="fa-solid fa-xmark"></i>
@@ -14,11 +14,22 @@
     </div>
 
     <div class="chatbot-messages" id="chatbot-messages">
-        <div class="chatbot-message assistant">Bonjour ! Je peux répondre à vos questions générales sur nos prestations, nos tarifs, ou l'utilisation de votre espace client. Pour toute question sur votre dossier personnel (factures, paiements), consultez les onglets dédiés ou contactez votre comptable.</div>
+        <div class="chatbot-groupe">
+            <div class="chatbot-message assistant">Bonjour et bienvenue sur l'assistant KBTO. Pour préciser votre demande, votre question porte sur :</div>
+            <div class="chatbot-options" id="chatbot-options-initiales">
+                {% for option in menu_principal_chatbot %}
+                <button type="button" class="chatbot-option" data-id="{{ option.id }}" data-libelle="{{ option.libelle }}" onclick="envoyerOptionChatbot(this)">{{ option.libelle }}</button>
+                {% endfor %}
+            </div>
+            <div class="chatbot-pied">
+                <span class="chatbot-avatar"><i class="fa-solid fa-robot"></i></span>
+                <span class="chatbot-heure" data-heure-initiale></span>
+            </div>
+        </div>
     </div>
 
     <form class="chatbot-saisie" id="chatbot-formulaire" onsubmit="return envoyerMessageChatbot(event)">
-        <input type="text" id="chatbot-saisie-texte" placeholder="Votre question..." maxlength="500" autocomplete="off">
+        <input type="text" id="chatbot-saisie-texte" placeholder="Taper un message" maxlength="500" autocomplete="off">
         <button type="submit" aria-label="Envoyer"><i class="fa-solid fa-paper-plane"></i></button>
     </form>
 </div>
@@ -28,14 +39,103 @@
         document.getElementById('chatbot-panneau').classList.toggle('ouvert');
     }
 
-    function ajouterMessageChatbot(texte, classe) {
+    function heureActuelle() {
+        var maintenant = new Date();
+        var heures = String(maintenant.getHours()).padStart(2, '0');
+        var minutes = String(maintenant.getMinutes()).padStart(2, '0');
+        return heures + 'h' + minutes;
+    }
+
+    // L'heure du message d'accueil est calculee en JS (et non au rendu de la
+    // page) pour refleter l'heure a laquelle l'utilisateur ouvre le chat,
+    // pas l'heure de generation de la page.
+    document.querySelectorAll('[data-heure-initiale]').forEach(function (element) {
+        element.textContent = heureActuelle();
+    });
+
+    function ajouterMessageClient(texte) {
         var zone = document.getElementById('chatbot-messages');
         var element = document.createElement('div');
-        element.className = 'chatbot-message ' + classe;
+        element.className = 'chatbot-message client';
         element.textContent = texte;
         zone.appendChild(element);
         zone.scrollTop = zone.scrollHeight;
-        return element;
+    }
+
+    function ajouterGroupeAssistant(texte, options) {
+        var zone = document.getElementById('chatbot-messages');
+
+        var groupe = document.createElement('div');
+        groupe.className = 'chatbot-groupe';
+
+        var bulle = document.createElement('div');
+        bulle.className = 'chatbot-message assistant';
+        bulle.textContent = texte;
+        groupe.appendChild(bulle);
+
+        if (options && options.length) {
+            var conteneurOptions = document.createElement('div');
+            conteneurOptions.className = 'chatbot-options';
+            options.forEach(function (option) {
+                var bouton = document.createElement('button');
+                bouton.type = 'button';
+                bouton.className = 'chatbot-option';
+                bouton.textContent = option.libelle;
+                bouton.setAttribute('onclick', 'envoyerOptionChatbot(this)');
+                bouton.setAttribute('data-id', option.id);
+                bouton.setAttribute('data-libelle', option.libelle);
+                conteneurOptions.appendChild(bouton);
+            });
+            groupe.appendChild(conteneurOptions);
+        }
+
+        var pied = document.createElement('div');
+        pied.className = 'chatbot-pied';
+        pied.innerHTML = '<span class="chatbot-avatar"><i class="fa-solid fa-robot"></i></span><span class="chatbot-heure"></span>';
+        pied.querySelector('.chatbot-heure').textContent = heureActuelle();
+        groupe.appendChild(pied);
+
+        zone.appendChild(groupe);
+        zone.scrollTop = zone.scrollHeight;
+        return groupe;
+    }
+
+    function desactiverOptions(groupeBouton) {
+        // Une fois un bouton clique, on desactive tout le groupe de boutons
+        // (pas de re-clic sur un choix deja fait dans cet echange).
+        var conteneur = groupeBouton.closest('.chatbot-options');
+        if (conteneur) {
+            conteneur.querySelectorAll('.chatbot-option').forEach(function (b) { b.disabled = true; });
+        }
+    }
+
+    function appelerAssistant(corps, groupeChargement) {
+        var jeton = document.querySelector('meta[name="csrf-token"]').content;
+
+        fetch('{{ url_for("portail_assistant_message") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': jeton
+            },
+            body: JSON.stringify(corps)
+        })
+        .then(function (reponse) { return reponse.json(); })
+        .then(function (donnees) {
+            groupeChargement.remove();
+            ajouterGroupeAssistant(donnees.reponse || "Une erreur est survenue.", donnees.menu || []);
+        })
+        .catch(function () {
+            groupeChargement.remove();
+            ajouterGroupeAssistant("Impossible de contacter l'assistant pour le moment.", []);
+        });
+    }
+
+    function envoyerOptionChatbot(bouton) {
+        desactiverOptions(bouton);
+        ajouterMessageClient(bouton.getAttribute('data-libelle'));
+        var groupeChargement = ajouterGroupeAssistant('...', []);
+        appelerAssistant({ option_id: bouton.getAttribute('data-id') }, groupeChargement);
     }
 
     function envoyerMessageChatbot(evenement) {
@@ -45,35 +145,11 @@
         var message = champ.value.trim();
         if (!message) { return false; }
 
-        ajouterMessageChatbot(message, 'client');
+        ajouterMessageClient(message);
         champ.value = '';
 
-        var bouton = document.querySelector('#chatbot-formulaire button');
-        bouton.disabled = true;
-        var messageChargement = ajouterMessageChatbot('...', 'chargement');
-
-        var jeton = document.querySelector('meta[name="csrf-token"]').content;
-
-        fetch('{{ url_for("portail_assistant_message") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': jeton
-            },
-            body: JSON.stringify({ message: message })
-        })
-        .then(function (reponse) { return reponse.json(); })
-        .then(function (donnees) {
-            messageChargement.remove();
-            ajouterMessageChatbot(donnees.reponse || "Une erreur est survenue.", 'assistant');
-        })
-        .catch(function () {
-            messageChargement.remove();
-            ajouterMessageChatbot("Impossible de contacter l'assistant pour le moment.", 'assistant');
-        })
-        .finally(function () {
-            bouton.disabled = false;
-        });
+        var groupeChargement = ajouterGroupeAssistant('...', []);
+        appelerAssistant({ message: message }, groupeChargement);
 
         return false;
     }

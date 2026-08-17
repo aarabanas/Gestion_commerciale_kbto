@@ -83,19 +83,27 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = Flask(__name__)
 
-# Journalisation des erreurs serveur dans un fichier : FLASK_DEBUG=0 (obligatoire
-# des que l'app est accessible par d'autres, voir plus bas) supprime les traces
-# affichees au navigateur -- sans ceci, une erreur 500 ne laisserait absolument
-# aucune trace exploitable, y compris lancee en tache de fond (Planificateur de
-# taches) ou la sortie standard n'est pas consultee.
+# Railway/Render (et la plupart des hebergeurs) placent l'app derriere un
+# reverse-proxy qui termine le HTTPS : sans ProxyFix, Flask croit que chaque
+# requete arrive en HTTP simple (connexion interne proxy -> app), ce qui
+# casserait le cookie de session "Secure" et les liens generes en https://.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+# Journalisation des erreurs serveur : FLASK_DEBUG=0 (obligatoire des que
+# l'app est accessible par d'autres, voir plus bas) supprime les traces
+# affichees au navigateur -- sans ceci, une erreur 500 ne laisserait aucune
+# trace exploitable. Fichier local (utile pour le deploiement reseau interne
+# Windows) + sortie standard (captee automatiquement par les hebergeurs type
+# Railway/Render dans leur tableau de bord de logs).
 _dossier_logs = Path(__file__).resolve().parent / "logs"
 _dossier_logs.mkdir(exist_ok=True)
 _gestionnaire_erreurs = logging.FileHandler(_dossier_logs / "erreurs.log", encoding="utf-8")
-_gestionnaire_erreurs.setLevel(logging.ERROR)
-_gestionnaire_erreurs.setFormatter(logging.Formatter(
-    "%(asctime)s [%(levelname)s] %(message)s"
-))
-app.logger.addHandler(_gestionnaire_erreurs)
+_gestionnaire_console = logging.StreamHandler()
+for _gestionnaire in (_gestionnaire_erreurs, _gestionnaire_console):
+    _gestionnaire.setLevel(logging.ERROR)
+    _gestionnaire.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    app.logger.addHandler(_gestionnaire)
 app.logger.setLevel(logging.ERROR)
 
 # Valeur de repli utilisee uniquement en developpement local (jamais commitee
